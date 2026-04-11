@@ -1,2 +1,5 @@
 azure-functions
 azure-cosmos
+PyJWT
+cryptography
+requests

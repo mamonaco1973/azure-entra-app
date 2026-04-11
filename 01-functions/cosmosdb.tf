@@ -1,5 +1,5 @@
 resource "azurerm_cosmosdb_account" "notes" {
-  name                = "notes-cosmos-${random_id.suffix.hex}"
+  name                = "notes-b2c-cosmos-${random_id.suffix.hex}"
   location            = azurerm_resource_group.notes.location
   resource_group_name = azurerm_resource_group.notes.name
   offer_type          = "Standard"

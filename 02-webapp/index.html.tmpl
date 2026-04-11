@@ -17,14 +17,23 @@
     }
 
     header {
-      padding: 16px;
+      padding: 12px 16px;
       background: #020617;
       border-bottom: 1px solid #1e293b;
+      display: flex;
+      align-items: center;
+      gap: 12px;
     }
 
     h1 {
       margin: 0;
       font-size: 18px;
+      flex: 1;
+    }
+
+    #userEmail {
+      font-size: 12px;
+      color: #94a3b8;
     }
 
     main {
@@ -58,7 +67,7 @@
     }
 
     button.secondary { background: #475569; }
-    button.delete { background: #dc2626; }
+    button.delete    { background: #dc2626; }
 
     input, textarea {
       width: 100%;
@@ -69,6 +78,7 @@
       background: #020617;
       color: #e5e7eb;
       font-size: 13px;
+      box-sizing: border-box;
     }
 
     textarea { min-height: 180px; }
@@ -79,7 +89,7 @@
       cursor: pointer;
     }
 
-    .note:hover { background: #020617; }
+    .note:hover  { background: #0f172a; }
     .note.active { background: #1e293b; }
 
     .status {
@@ -88,6 +98,20 @@
       color: #94a3b8;
       white-space: pre-wrap;
     }
+
+    /* ===================== Auth Gate ===================== */
+
+    #authGate {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 60vh;
+      gap: 16px;
+      text-align: center;
+    }
+
+    #authGate p { color: #94a3b8; font-size: 14px; margin: 0; }
 
     /* ===================== Modal ===================== */
 
@@ -117,7 +141,7 @@
       font-weight: 600;
     }
 
-    .modal-body { margin-top: 12px; }
+    .modal-body   { margin-top: 12px; }
 
     .modal-footer {
       margin-top: 12px;
@@ -131,7 +155,7 @@
     .busy-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.35);
+      background: rgba(0,0,0,0.35);
       backdrop-filter: blur(2px);
       display: none;
       align-items: center;
@@ -139,10 +163,7 @@
       z-index: 2000;
     }
 
-    .busy-overlay.active {
-      display: flex;
-      cursor: wait;
-    }
+    .busy-overlay.active { display: flex; cursor: wait; }
 
     .busy-box {
       padding: 16px 18px;
@@ -154,10 +175,7 @@
     }
 
     body.busy { cursor: wait; }
-
-    body.busy button,
-    body.busy input,
-    body.busy textarea {
+    body.busy button, body.busy input, body.busy textarea {
       pointer-events: none;
       opacity: 0.6;
     }
@@ -168,9 +186,19 @@
 
 <header>
   <h1>Notes Demo</h1>
+  <span id="userEmail"></span>
+  <button id="btnSignIn"  class="secondary" style="display:none">Sign In</button>
+  <button id="btnSignOut" class="secondary" style="display:none">Sign Out</button>
 </header>
 
-<main>
+<!-- Shown when not authenticated -->
+<div id="authGate">
+  <p>Sign in to access your notes.</p>
+  <button id="btnSignInGate">Sign In with Azure B2C</button>
+</div>
+
+<!-- Main app — hidden until authenticated -->
+<main id="appMain" style="display:none">
 
   <!-- Notes list -->
   <section>
@@ -226,25 +254,72 @@
 
 <script>
   // ===================== Config =====================
-  const API_BASE_URL = "${API_BASE}";
+  let CFG = null;   // loaded from /config.json at startup
+
+  // ===================== PKCE Helpers ===============
+
+  function randomBase64url(byteLen) {
+    const arr = new Uint8Array(byteLen);
+    crypto.getRandomValues(arr);
+    return btoa(String.fromCharCode(...arr))
+      .replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+  }
+
+  async function sha256Base64url(str) {
+    const data   = new TextEncoder().encode(str);
+    const digest = await crypto.subtle.digest("SHA-256", data);
+    return btoa(String.fromCharCode(...new Uint8Array(digest)))
+      .replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+  }
+
+  async function startLogin() {
+    const verifier  = randomBase64url(96);
+    const challenge = await sha256Base64url(verifier);
+    const state     = randomBase64url(16);
+
+    sessionStorage.setItem("pkce_verifier", verifier);
+    sessionStorage.setItem("pkce_state",    state);
+
+    const params = new URLSearchParams({
+      client_id:             CFG.clientId,
+      response_type:         "code",
+      redirect_uri:          CFG.redirectUri,
+      response_mode:         "query",
+      scope:                 "openid offline_access",
+      state:                 state,
+      code_challenge:        challenge,
+      code_challenge_method: "S256",
+    });
+
+    window.location.href = CFG.authority + "/oauth2/v2.0/authorize?" + params.toString();
+  }
+
+  function startLogout() {
+    sessionStorage.removeItem("access_token");
+    sessionStorage.removeItem("id_token");
+    sessionStorage.removeItem("refresh_token");
+    const postLogout = CFG.redirectUri.replace("callback.html", "index.html");
+    const params     = new URLSearchParams({ post_logout_redirect_uri: postLogout });
+    window.location.href = CFG.authority + "/oauth2/v2.0/logout?" + params.toString();
+  }
+
+  function getToken() { return sessionStorage.getItem("access_token"); }
 
   // ===================== State ======================
-  let notes = [];
+  let notes      = [];
   let selectedId = null;
 
   // ===================== Elements ===================
-  const elNotes      = document.getElementById("notes");
-  const elTitle      = document.getElementById("title");
-  const elNote       = document.getElementById("note");
-  const elStatus     = document.getElementById("status");
-  const elListStatus = document.getElementById("listStatus");
-
-  const modal        = document.getElementById("newModal");
-  const modalTitle   = document.getElementById("modalTitle");
-  const modalNote    = document.getElementById("modalNote");
-  const modalStatus  = document.getElementById("modalStatus");
-
-  const busyOverlay  = document.getElementById("busyOverlay");
+  const elNotes       = document.getElementById("notes");
+  const elTitle       = document.getElementById("title");
+  const elNote        = document.getElementById("note");
+  const elStatus      = document.getElementById("status");
+  const elListStatus  = document.getElementById("listStatus");
+  const modal         = document.getElementById("newModal");
+  const modalTitle    = document.getElementById("modalTitle");
+  const modalNote     = document.getElementById("modalNote");
+  const modalStatus   = document.getElementById("modalStatus");
+  const busyOverlay   = document.getElementById("busyOverlay");
 
   // ===================== Busy State =================
   function setBusy(isBusy) {
@@ -254,11 +329,14 @@
 
   // ===================== Helpers ====================
   async function api(path, method = "GET", body) {
-    console.log(method, API_BASE_URL + path);
-    const res = await fetch(API_BASE_URL + path, {
+    const token   = getToken();
+    const headers = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = "Bearer " + token;
+
+    const res  = await fetch(CFG.apiBaseUrl + path, {
       method,
-      headers: { "Content-Type": "application/json" },
-      body: body ? JSON.stringify(body) : undefined
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
     });
 
     const text = await res.text();
@@ -266,13 +344,8 @@
     return text ? JSON.parse(text) : null;
   }
 
-  function setStatus(msg) {
-    elStatus.textContent = msg || "";
-  }
-
-  function setListStatus(msg) {
-    elListStatus.textContent = msg || "";
-  }
+  function setStatus(msg)     { elStatus.textContent     = msg || ""; }
+  function setListStatus(msg) { elListStatus.textContent = msg || ""; }
 
   // ===================== CRUD =======================
   async function loadNotes() {
@@ -296,8 +369,8 @@
     try {
       const n = await api(`/notes/${id}`);
       elTitle.value = n.title || "";
-      elNote.value  = n.note || "";
-      selectedId = id;
+      elNote.value  = n.note  || "";
+      selectedId    = id;
       renderNotes();
       setStatus("Loaded note");
     } catch (e) {
@@ -311,10 +384,7 @@
     const title = elTitle.value.trim();
     const note  = elNote.value || "";
 
-    if (!title) {
-      setStatus("Title is required");
-      return;
-    }
+    if (!title) { setStatus("Title is required"); return; }
 
     setBusy(true);
     try {
@@ -322,7 +392,7 @@
         await api(`/notes/${selectedId}`, "PUT", { title, note });
         setStatus("Updated note");
       } else {
-        const res = await api("/notes", "POST", { title, note });
+        const res  = await api("/notes", "POST", { title, note });
         selectedId = res.id;
         setStatus("Created note");
       }
@@ -335,17 +405,13 @@
   }
 
   async function deleteNote() {
-    if (!selectedId) {
-      setStatus("Select a note to delete");
-      return;
-    }
-
+    if (!selectedId) { setStatus("Select a note to delete"); return; }
     if (!confirm("Delete this note?")) return;
 
     setBusy(true);
     try {
       await api(`/notes/${selectedId}`, "DELETE");
-      selectedId = null;
+      selectedId    = null;
       elTitle.value = "";
       elNote.value  = "";
       await loadNotes();
@@ -361,15 +427,15 @@
     elNotes.innerHTML = "";
     notes.forEach(n => {
       const d = document.createElement("div");
-      d.className = "note" + (n.id === selectedId ? " active" : "");
+      d.className   = "note" + (n.id === selectedId ? " active" : "");
       d.textContent = n.title || "(untitled)";
       d.addEventListener("click", () => loadNote(n.id));
       elNotes.appendChild(d);
     });
 
     if (notes.length === 0) {
-      const empty = document.createElement("div");
-      empty.className = "status";
+      const empty       = document.createElement("div");
+      empty.className   = "status";
       empty.textContent = "No notes yet. Click New to create one.";
       elNotes.appendChild(empty);
     }
@@ -377,36 +443,28 @@
 
   // ===================== Modal ======================
   function openModal() {
-    modalTitle.value = "";
-    modalNote.value = "";
+    modalTitle.value        = "";
+    modalNote.value         = "";
     modalStatus.textContent = "";
-    modal.style.display = "flex";
+    modal.style.display     = "flex";
     setTimeout(() => modalTitle.focus(), 0);
   }
 
-  function closeModal() {
-    modal.style.display = "none";
-  }
+  function closeModal() { modal.style.display = "none"; }
 
   async function createFromModal() {
     const title = modalTitle.value.trim();
     const note  = modalNote.value || "";
 
-    if (!title) {
-      modalStatus.textContent = "Title is required";
-      return;
-    }
+    if (!title) { modalStatus.textContent = "Title is required"; return; }
 
     setBusy(true);
     modalStatus.textContent = "Creating...";
     try {
-      const res = await api("/notes", "POST", { title, note });
-      selectedId = res.id;
-
-      // Reuse main editor panel
+      const res  = await api("/notes", "POST", { title, note });
+      selectedId    = res.id;
       elTitle.value = title;
       elNote.value  = note;
-
       closeModal();
       await loadNotes();
       setStatus("Created note");
@@ -417,16 +475,9 @@
     }
   }
 
-  // Close modal by clicking backdrop
-  modal.addEventListener("click", (e) => {
-    if (e.target === modal) closeModal();
-  });
-
-  // Esc closes modal
-  document.addEventListener("keydown", (e) => {
-    if (modal.style.display === "flex" && e.key === "Escape") {
-      closeModal();
-    }
+  modal.addEventListener("click", e => { if (e.target === modal) closeModal(); });
+  document.addEventListener("keydown", e => {
+    if (modal.style.display === "flex" && e.key === "Escape") closeModal();
   });
 
   // ===================== Wiring =====================
@@ -434,12 +485,41 @@
   document.getElementById("btnNew").addEventListener("click", openModal);
   document.getElementById("btnSave").addEventListener("click", saveNote);
   document.getElementById("btnDelete").addEventListener("click", deleteNote);
-
   document.getElementById("btnModalCancel").addEventListener("click", closeModal);
   document.getElementById("btnModalCreate").addEventListener("click", createFromModal);
+  document.getElementById("btnSignIn").addEventListener("click", () => startLogin());
+  document.getElementById("btnSignInGate").addEventListener("click", () => startLogin());
+  document.getElementById("btnSignOut").addEventListener("click", startLogout);
 
   // ===================== Init =======================
-  loadNotes();
+  async function init() {
+    CFG = await fetch("config.json").then(r => r.json());
+
+    const token = getToken();
+
+    if (!token) {
+      document.getElementById("authGate").style.display  = "flex";
+      document.getElementById("btnSignIn").style.display = "inline-block";
+      return;
+    }
+
+    // Best-effort: show email from id_token payload in the header.
+    try {
+      const idToken = sessionStorage.getItem("id_token");
+      if (idToken) {
+        const payload = JSON.parse(atob(idToken.split(".")[1]));
+        const email   = (payload.emails && payload.emails[0]) || payload.email || "";
+        if (email) document.getElementById("userEmail").textContent = email;
+      }
+    } catch (_) {}
+
+    document.getElementById("btnSignOut").style.display = "inline-block";
+    document.getElementById("appMain").style.display    = "grid";
+
+    loadNotes();
+  }
+
+  init();
 </script>
 
 </body>

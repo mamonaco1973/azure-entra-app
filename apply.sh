@@ -4,14 +4,27 @@ set -euo pipefail
 ./check_env.sh
 
 
-# ── Phase 1: Functions + Cosmos DB ────────────────────────────────────────────
+# ── Phase 1: Infrastructure (Cosmos DB + Functions + Web Storage + B2C App Reg)
 
-echo "NOTE: Deploying functions and Cosmos DB..."
+echo "NOTE: Deploying infrastructure..."
 cd 01-functions
+
+# Pass B2C config as Terraform variables.
+export TF_VAR_b2c_tenant_id="$B2C_TENANT_ID"
+export TF_VAR_b2c_tenant_name="$B2C_TENANT_NAME"
+export TF_VAR_b2c_policy_name="$B2C_POLICY_NAME"
+export TF_VAR_b2c_sp_client_id="$B2C_SP_CLIENT_ID"
+export TF_VAR_b2c_sp_client_secret="$B2C_SP_CLIENT_SECRET"
+
 terraform init -upgrade
 terraform apply -auto-approve
 
 RESOURCE_GROUP=$(terraform output -raw resource_group_name)
+WEB_STORAGE_NAME=$(terraform output -raw web_storage_name)
+WEB_BASE_URL=$(terraform output -raw web_base_url)
+B2C_CLIENT_ID=$(terraform output -raw b2c_client_id)
+B2C_AUTHORITY=$(terraform output -raw b2c_authority)
+
 cd ..
 
 
@@ -29,7 +42,7 @@ zip -r app.zip . \
 
 FUNC_APP_NAME=$(az functionapp list \
   --resource-group "$RESOURCE_GROUP" \
-  --query "[?starts_with(name, 'notes-func-')].name" \
+  --query "[?starts_with(name, 'notes-b2c-func-')].name" \
   --output tsv)
 
 az functionapp deployment source config-zip \
@@ -46,19 +59,35 @@ API_BASE="https://$(az functionapp show \
   --query "properties.defaultHostName" \
   -o tsv)/api"
 
-export API_BASE
 echo "NOTE: Function app: ${FUNC_APP_NAME}"
 echo "NOTE: API base:     ${API_BASE}"
 
 
-# ── Phase 3: Web app ──────────────────────────────────────────────────────────
+# ── Phase 3: Build web app config ─────────────────────────────────────────────
 
-echo "NOTE: Building web app..."
-envsubst '${API_BASE}' < 02-webapp/index.html.tmpl > 02-webapp/index.html
+echo "NOTE: Building web app config..."
 
+REDIRECT_URI="${WEB_BASE_URL}callback.html"
+
+cat > 02-webapp/config.json <<EOF
+{
+  "authority":  "${B2C_AUTHORITY}",
+  "clientId":   "${B2C_CLIENT_ID}",
+  "redirectUri": "${REDIRECT_URI}",
+  "apiBaseUrl": "${API_BASE}"
+}
+EOF
+
+# index.html.tmpl has no placeholders — copy as-is.
+cp 02-webapp/index.html.tmpl 02-webapp/index.html
+
+
+# ── Phase 4: Deploy web app ────────────────────────────────────────────────────
+
+echo "NOTE: Deploying web app..."
 cd 02-webapp
 terraform init -upgrade
-terraform apply -auto-approve
+terraform apply -auto-approve -var="web_storage_name=${WEB_STORAGE_NAME}"
 
 WEBSITE_URL=$(terraform output -raw website_url)
 cd ..

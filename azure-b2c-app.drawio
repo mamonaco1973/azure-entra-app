@@ -1,0 +1,92 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36">
+  <diagram id="Ht1M8jgEwFfnCIfOTk4-" name="Page-1">
+    <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="1169" pageHeight="827" background="none" math="0" shadow="1">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Azure cloud border -->
+        <mxCell id="border" parent="1" style="whiteSpace=wrap;html=1;fillColor=none;rounded=0;labelBackgroundColor=none;fontColor=none;noLabel=1;" value="" vertex="1">
+          <mxGeometry height="400" width="850" x="200" y="-810" as="geometry" />
+        </mxCell>
+        <mxCell id="azure-label" parent="1" style="image;aspect=fixed;html=1;points=[];align=left;fontSize=17;image=img/lib/azure2/other/Azure_A.svg;labelBackgroundColor=none;labelPosition=right;verticalLabelPosition=middle;verticalAlign=middle;spacing=8;" value="Azure Cloud - US Central Region" vertex="1">
+          <mxGeometry height="30" width="31.82" x="200" y="-840" as="geometry" />
+        </mxCell>
+
+        <!-- Browser -->
+        <mxCell id="browser" parent="1" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/general/Browser.svg;labelBackgroundColor=none;" value="Browser" vertex="1">
+          <mxGeometry height="50" width="57" x="50" y="-700" as="geometry" />
+        </mxCell>
+
+        <!-- Blob Storage - SPA -->
+        <mxCell id="blob-website" parent="1" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/storage/Storage_Accounts.svg;labelBackgroundColor=none;" value="Static Website&lt;div&gt;Blob Storage ($web)&lt;/div&gt;&lt;div&gt;index.html / callback.html&lt;/div&gt;" vertex="1">
+          <mxGeometry height="50.3" width="57" x="290" y="-700" as="geometry" />
+        </mxCell>
+
+        <!-- Azure AD B2C -->
+        <mxCell id="b2c" parent="1" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/identity/Azure_Active_Directory.svg;labelBackgroundColor=none;" value="Azure AD B2C&lt;div&gt;Hosted UI&lt;/div&gt;&lt;div&gt;User Flow (PKCE)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="50.3" width="57" x="290" y="-590" as="geometry" />
+        </mxCell>
+
+        <!-- Azure Functions -->
+        <mxCell id="func-app" parent="1" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/compute/Function_Apps.svg;labelBackgroundColor=none;labelPosition=center;verticalLabelPosition=top;verticalAlign=bottom;direction=west;" value="notes-b2c-func-*&lt;div&gt;Azure Functions (FC1)&lt;/div&gt;&lt;div&gt;Python 3.11 / JWT validation&lt;/div&gt;" vertex="1">
+          <mxGeometry height="50.3" width="57" x="570" y="-700" as="geometry" />
+        </mxCell>
+
+        <!-- Cosmos DB -->
+        <mxCell id="cosmos" parent="1" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/databases/Azure_Cosmos_DB.svg;labelBackgroundColor=none;" value="notes-b2c-cosmos-*&lt;div&gt;Cosmos DB SQL API&lt;/div&gt;&lt;div&gt;partition: /owner (sub)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="58" width="58" x="850" y="-704" as="geometry" />
+        </mxCell>
+
+        <!-- Function code storage -->
+        <mxCell id="func-storage" parent="1" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/storage/Storage_Accounts.svg;labelBackgroundColor=none;" value="func code&lt;div&gt;storage account&lt;/div&gt;" vertex="1">
+          <mxGeometry height="38.4" width="48" x="574.5" y="-560" as="geometry" />
+        </mxCell>
+
+        <!-- Edge: Browser → Blob (GET SPA) -->
+        <mxCell id="e-browser-web" edge="1" parent="1" source="browser" style="endArrow=classic;startArrow=classic;startFill=1;html=1;rounded=0;dashed=1;labelBackgroundColor=none;spacingTop=-20;" target="blob-website" value="GET index.html / callback.html">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Edge: Browser → B2C (sign-in redirect) -->
+        <mxCell id="e-browser-b2c" edge="1" parent="1" source="browser" style="endArrow=classic;startArrow=classic;startFill=1;html=1;rounded=0;dashed=1;labelBackgroundColor=none;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" target="b2c" value="sign-in redirect (PKCE)">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="78" y="-590" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Edge: B2C → callback.html (auth code) -->
+        <mxCell id="e-b2c-callback" edge="1" parent="1" source="b2c" style="endArrow=classic;startArrow=none;html=1;rounded=0;dashed=1;labelBackgroundColor=none;" target="blob-website" value="redirect + auth code">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Edge: Blob (callback) → Functions (token exchange note) -->
+        <mxCell id="e-callback-func" edge="1" parent="1" source="blob-website" style="endArrow=classic;startArrow=none;html=1;rounded=0;dashed=1;labelBackgroundColor=none;spacingTop=-20;" target="func-app" value="API calls + Bearer JWT">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Edge: Functions → Cosmos -->
+        <mxCell id="e-func-cosmos" edge="1" parent="1" source="func-app" style="endArrow=classic;startArrow=classic;startFill=1;html=1;rounded=0;labelBackgroundColor=none;spacingTop=-20;dashed=1;" target="cosmos" value="CRUD (owner = sub)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Edge: Functions → code storage -->
+        <mxCell id="e-func-storage" edge="1" parent="1" source="func-app" style="endArrow=none;html=1;rounded=0;dashed=1;labelBackgroundColor=none;" target="func-storage" value="code zip">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Edge: Functions → B2C JWKS (JWT validation) -->
+        <mxCell id="e-func-b2c" edge="1" parent="1" source="func-app" style="endArrow=classic;startArrow=none;html=1;rounded=0;dashed=1;labelBackgroundColor=none;curved=1;" target="b2c" value="JWKS validation">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="598" y="-590" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

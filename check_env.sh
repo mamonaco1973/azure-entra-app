@@ -24,7 +24,17 @@ fi
 
 echo "NOTE: Validating that required environment variables are set."
 
-required_vars=("ARM_CLIENT_ID" "ARM_CLIENT_SECRET" "ARM_SUBSCRIPTION_ID" "ARM_TENANT_ID")
+required_vars=(
+  "ARM_CLIENT_ID"
+  "ARM_CLIENT_SECRET"
+  "ARM_SUBSCRIPTION_ID"
+  "ARM_TENANT_ID"
+  "B2C_TENANT_ID"
+  "B2C_TENANT_NAME"
+  "B2C_POLICY_NAME"
+  "B2C_SP_CLIENT_ID"
+  "B2C_SP_CLIENT_SECRET"
+)
 
 all_set=true
 
@@ -45,10 +55,13 @@ else
 fi
 
 echo "NOTE: Logging in to Azure using Service Principal..."
-az login --service-principal --username "$ARM_CLIENT_ID" --password "$ARM_CLIENT_SECRET" --tenant "$ARM_TENANT_ID" > /dev/null 2>&1
+az login --service-principal \
+  --username "$ARM_CLIENT_ID" \
+  --password "$ARM_CLIENT_SECRET" \
+  --tenant   "$ARM_TENANT_ID" > /dev/null 2>&1
 
 if [ $? -ne 0 ]; then
-  echo "ERROR: Failed to log into Azure. Please check your credentials and environment variables."
+  echo "ERROR: Failed to log into Azure. Please check your credentials."
   exit 1
 else
   echo "NOTE: Successfully logged into Azure."

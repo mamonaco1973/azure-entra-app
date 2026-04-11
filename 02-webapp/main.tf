@@ -4,10 +4,6 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "~> 4.0"
     }
-    random = {
-      source  = "hashicorp/random"
-      version = "~> 3.0"
-    }
   }
 }
 
@@ -15,17 +11,10 @@ provider "azurerm" {
   features {}
 }
 
-resource "random_id" "suffix" {
-  byte_length = 4
-}
-
-variable "location" {
-  description = "Azure region for all resources"
+# The storage account is created by 01-functions (so its URL is known before
+# the B2C app registration redirect URI is written). This module only uploads
+# the built files into the existing $web container.
+variable "web_storage_name" {
+  description = "Name of the storage account created by 01-functions"
   type        = string
-  default     = "Central US"
-}
-
-resource "azurerm_resource_group" "webapp" {
-  name     = "notes-webapp-rg"
-  location = var.location
 }

@@ -1,129 +1,138 @@
-# CLAUDE.md — azure-crud-example
+# azure-b2c-app
 
-## Project Overview
-
-Terraform + Azure Functions project that deploys a serverless CRUD API for
-managing "notes", backed by Azure Cosmos DB. A static frontend is hosted on
-Azure Blob Storage. This is a port of `aws-crud-example` (Lambda + DynamoDB + S3).
+Serverless CRUD API for managing notes, secured with Azure AD B2C JWT authentication. Port of `aws-cognito-app` onto Azure — Azure Functions instead of Lambda, Cosmos DB instead of DynamoDB, Blob Storage instead of S3, B2C instead of Cognito.
 
 ## Architecture
 
 ```
-01-functions/          Function App + Cosmos DB
-  code/
-    function_app.py    All 5 HTTP-triggered functions (Python v2 model)
-    requirements.txt   azure-functions, azure-cosmos
-    host.json          Extension bundle config
-  main.tf              Provider, resource group (notes-rg), random suffix
-  cosmosdb.tf          Cosmos DB account → database → container
-  functions.tf         Storage account, service plan (Y1), Function App, code deploy
-  outputs.tf           function_app_name, function_app_url, resource_group_name
-
-02-webapp/             Static frontend
-  index.html.tmpl      Template — ${API_BASE} substituted by apply.sh
-  main.tf              Provider, resource group (notes-webapp-rg)
-  storage.tf           Storage account, static website, index.html blob
+Browser → Blob Storage (SPA) → B2C Hosted UI → callback.html (PKCE) → sessionStorage (JWT)
+                                                                              ↓
+Browser → Azure Functions (JWT validated in Python code) → Cosmos DB (notes, /owner partition)
 ```
 
-### Deployment Order
+**Azure services:** Azure Functions (FC1 Flex Consumption), Cosmos DB (SQL API), Blob Storage static website, Azure AD B2C
 
-1. `01-functions` — Cosmos DB + Function App (Terraform + zip deploy)
-2. `02-webapp` — Blob Storage static site (Terraform)
+## Prerequisites
 
-### Key Resources
+The following must exist **before** running `apply.sh`. Everything else is automated.
 
-| Resource | Value |
+| Prerequisite | Notes |
 |---|---|
-| Resource group (backend) | `notes-rg` |
-| Resource group (frontend) | `notes-webapp-rg` |
-| Location | `East US` |
-| Cosmos DB kind | `GlobalDocumentDB` (SQL API) |
-| Cosmos DB consistency | `Session` |
-| Container throughput | `400 RU/s` |
-| Partition key | `/owner` (hardcoded value: `"global"`) |
-| Item ID | UUID (string) |
-| Function runtime | Python 3.11 |
-| Service plan SKU | `B1` (Basic) |
-| Function auth level | `ANONYMOUS` |
-| API base path | `https://<func-app>.azurewebsites.net/api` |
+| Azure AD B2C tenant | Created in Azure Portal; provides `B2C_TENANT_ID` and `B2C_TENANT_NAME` |
+| B2C sign-up/sign-in user flow | e.g. `B2C_1_signupsignin`; provides `B2C_POLICY_NAME` |
+| Service principal in B2C tenant | Needs `Application.ReadWrite.All` on Microsoft Graph in B2C; provides `B2C_SP_CLIENT_ID` / `B2C_SP_CLIENT_SECRET` |
 
-## API Endpoints
-
-| Method | Route | Function |
-|---|---|---|
-| POST | `/api/notes` | `create_note` |
-| GET | `/api/notes` | `list_notes` |
-| GET | `/api/notes/{id}` | `get_note` |
-| PUT | `/api/notes/{id}` | `update_note` |
-| DELETE | `/api/notes/{id}` | `delete_note` |
-
-## Common Commands
+## Required Environment Variables
 
 ```bash
-# Validate environment (checks az, terraform, jq in PATH + Azure auth)
-./check_env.sh
+# Azure subscription (same as azure-crud-example)
+ARM_CLIENT_ID
+ARM_CLIENT_SECRET
+ARM_SUBSCRIPTION_ID
+ARM_TENANT_ID
 
-# Deploy everything
-./apply.sh
-
-# Tear down
-./destroy.sh
-
-# Validate all CRUD endpoints
-./validate.sh
+# Azure AD B2C
+B2C_TENANT_ID          # GUID of the B2C tenant
+B2C_TENANT_NAME        # Prefix (e.g. "contosob2c" from contosob2c.onmicrosoft.com)
+B2C_POLICY_NAME        # User flow name (e.g. "B2C_1_signupsignin")
+B2C_SP_CLIENT_ID       # Service principal client ID registered IN the B2C tenant
+B2C_SP_CLIENT_SECRET   # Service principal secret
 ```
 
-### Manual API Testing
+## Deploy / Destroy
 
 ```bash
-# Get function app URL from Terraform
-cd 01-functions && API_BASE=$(terraform output -raw function_app_url) && cd ..
-
-# Create
-curl -s -X POST "${API_BASE}/notes" \
-  -H "Content-Type: application/json" \
-  -d '{"title":"Hello","note":"World"}'
-
-# List
-curl -s "${API_BASE}/notes" | jq .
-
-# Get
-curl -s "${API_BASE}/notes/<id>" | jq .
-
-# Update
-curl -s -X PUT "${API_BASE}/notes/<id>" \
-  -H "Content-Type: application/json" \
-  -d '{"title":"Updated","note":"Content"}'
-
-# Delete
-curl -s -X DELETE "${API_BASE}/notes/<id>" | jq .
+./apply.sh      # 4-phase deploy: infra → function code → config.json → webapp
+./destroy.sh    # Reverse teardown: webapp → infra (B2C app reg + functions + Cosmos + storage)
+./validate.sh   # Prints web app URL (auth prevents automated curl tests)
 ```
 
-## How Code Deployment Works
+## Project Structure
 
-Terraform creates the Function App infrastructure, then a `null_resource` in
-`functions.tf` runs `az functionapp deployment source config-zip` using a ZIP
-produced by the `archive_file` data source. The `null_resource` re-triggers
-whenever `data.archive_file.function_code.output_sha256` changes.
+```
+azure-b2c-app/
+├── 01-functions/
+│   ├── code/
+│   │   ├── function_app.py   5 HTTP-triggered functions; JWT validated in Python
+│   │   ├── requirements.txt  azure-functions, azure-cosmos, PyJWT, cryptography, requests
+│   │   └── host.json         Extension bundle v4
+│   ├── b2c.tf                azuread_application (SPA, PKCE, redirect URI → web storage)
+│   ├── cosmosdb.tf           Cosmos DB account → database → container (/owner partition)
+│   ├── functions.tf          Functions storage, service plan, Function App + B2C env vars
+│   ├── main.tf               azurerm + azuread (B2C) providers, resource group, random suffix
+│   ├── outputs.tf            function_app_url, web_storage_name, web_base_url, b2c_client_id, b2c_authority
+│   ├── storage.tf            Web hosting storage account (moved here so URL is known for B2C redirect URI)
+│   └── variables.tf          location + B2C vars (populated via TF_VAR_* in apply.sh)
+├── 02-webapp/
+│   ├── callback.html         PKCE callback: exchanges auth code for tokens, stores in sessionStorage
+│   ├── config.json           Generated by apply.sh — NOT committed
+│   ├── index.html.tmpl       SPA with auth gate, PKCE sign-in/out, JWT injected in all API calls
+│   ├── main.tf               azurerm provider + web_storage_name variable
+│   └── storage.tf            Blob uploads only (index.html, callback.html, config.json) to existing $web
+├── apply.sh
+├── destroy.sh
+├── validate.sh
+└── check_env.sh
+```
 
-## Cosmos DB Notes
+## Key Design Decisions
 
-- The `id` field in Cosmos DB is the primary key within a partition — it maps
-  directly to the note UUID.
-- All notes share `owner = "global"` (hardcoded), so all items are in one
-  logical partition.
-- `read_item(item=id, partition_key="global")` is used for single-item lookups
-  (O(1), no cross-partition query needed).
-- `query_items` with `enable_cross_partition_query=False` is used for list
-  (all items are in the same partition).
+**Web storage in 01-functions, not 02-webapp**
+The Blob Storage account must exist before the B2C app registration can be written (the redirect URI references the storage URL). Both are created in the same `terraform apply` — Terraform resolves the dependency graph.
+
+**JWT validation in function code, not Easy Auth**
+Each function calls `validate_token(req)` which verifies the Bearer token against B2C's JWKS endpoint. The JWKS response is cached in a module-level variable (warm invocations skip the network call). Owner is set from the JWT `sub` claim, enforcing per-user data isolation in Cosmos DB.
+
+**CORS set to specific origin**
+`allowed_origins` is set to the Blob Storage URL (not `*`) so the browser will accept `Authorization` headers in cross-origin requests.
+
+## config.json (generated at deploy time)
+
+```json
+{
+  "authority":   "https://<tenant>.b2clogin.com/<tenant_id>/<policy>",
+  "clientId":    "<b2c_app_client_id>",
+  "redirectUri": "https://<storage>.z1.web.core.windows.net/callback.html",
+  "apiBaseUrl":  "https://<func-app>.azurewebsites.net/api"
+}
+```
+
+## Auth Flow
+
+```
+1. User clicks "Sign In"
+2. index.html generates PKCE verifier + challenge, stores in sessionStorage
+3. Redirect → B2C Hosted UI (authorize endpoint)
+4. User creates account or signs in
+5. B2C redirects to callback.html?code=...&state=...
+6. callback.html exchanges code + verifier for tokens (POST /oauth2/v2.0/token)
+7. access_token, id_token, refresh_token stored in sessionStorage
+8. Redirect → index.html
+9. API calls include Authorization: Bearer <access_token>
+10. Function validates JWT signature, extracts sub as owner
+11. Cosmos DB queries scoped to owner partition key
+```
+
+## Key Resources
+
+| Resource | Name pattern |
+|---|---|
+| Resource group | `notes-b2c-rg` |
+| Location | `Central US` |
+| Function App | `notes-b2c-func-<suffix>` |
+| Cosmos DB account | `notes-b2c-cosmos-<suffix>` |
+| Cosmos DB container | `notes` with partition key `/owner` |
+| Web storage | `notesb2cweb<suffix>` |
+| B2C app registration | `notes-b2c-app` |
 
 ## AWS vs Azure Mapping
 
-| AWS | Azure |
+| aws-cognito-app | azure-b2c-app |
 |---|---|
-| Lambda (5 separate functions) | Azure Functions v2 (single `function_app.py`) |
-| API Gateway HTTP API | Azure Functions HTTP triggers |
-| DynamoDB | Cosmos DB SQL API |
-| S3 static website | Blob Storage `$web` container + static website |
-| IAM role per function | Cosmos DB key in Function App app settings |
-| `boto3` | `azure-cosmos` |
+| Cognito User Pool | Azure AD B2C tenant + user flow |
+| API Gateway JWT authorizer | `validate_token()` in Python function code |
+| Lambda (5 separate files) | Azure Functions v2 (single `function_app.py`) |
+| DynamoDB (`owner` + `id` composite key) | Cosmos DB (`/owner` partition + `id`) |
+| S3 static website | Blob Storage `$web` container |
+| `callback.html` PKCE exchange | identical pattern |
+| `config.json` runtime config | identical pattern |

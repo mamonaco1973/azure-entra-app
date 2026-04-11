@@ -1,5 +1,5 @@
 resource "azurerm_storage_account" "functions" {
-  name                     = "notesfunc${random_id.suffix.hex}"
+  name                     = "notesb2cfunc${random_id.suffix.hex}"
   resource_group_name      = azurerm_resource_group.notes.name
   location                 = azurerm_resource_group.notes.location
   account_tier             = "Standard"
@@ -14,7 +14,7 @@ resource "azurerm_storage_container" "func_code" {
 }
 
 resource "azurerm_service_plan" "notes" {
-  name                = "notes-plan"
+  name                = "notes-b2c-plan"
   resource_group_name = azurerm_resource_group.notes.name
   location            = azurerm_resource_group.notes.location
   os_type             = "Linux"
@@ -22,14 +22,14 @@ resource "azurerm_service_plan" "notes" {
 }
 
 resource "azurerm_application_insights" "notes" {
-  name                = "notes-ai"
+  name                = "notes-b2c-ai"
   resource_group_name = azurerm_resource_group.notes.name
   location            = azurerm_resource_group.notes.location
   application_type    = "web"
 }
 
 resource "azurerm_function_app_flex_consumption" "notes" {
-  name                = "notes-func-${random_id.suffix.hex}"
+  name                = "notes-b2c-func-${random_id.suffix.hex}"
   resource_group_name = azurerm_resource_group.notes.name
   location            = azurerm_resource_group.notes.location
 
@@ -49,7 +49,9 @@ resource "azurerm_function_app_flex_consumption" "notes" {
 
   site_config {
     cors {
-      allowed_origins     = ["*"]
+      # Restrict to the exact web storage origin so the browser accepts
+      # requests that carry an Authorization header.
+      allowed_origins     = [trimsuffix(azurerm_storage_account.web.primary_web_endpoint, "/")]
       support_credentials = false
     }
   }
@@ -62,6 +64,10 @@ resource "azurerm_function_app_flex_consumption" "notes" {
     COSMOS_DATABASE                       = azurerm_cosmosdb_sql_database.notes.name
     COSMOS_CONTAINER                      = azurerm_cosmosdb_sql_container.notes.name
     AzureWebJobsFeatureFlags              = "EnableWorkerIndexing"
+    B2C_TENANT_NAME                       = var.b2c_tenant_name
+    B2C_TENANT_ID                         = var.b2c_tenant_id
+    B2C_POLICY_NAME                       = var.b2c_policy_name
+    B2C_CLIENT_ID                         = azuread_application.notes.client_id
   }
 
   lifecycle {
@@ -69,8 +75,6 @@ resource "azurerm_function_app_flex_consumption" "notes" {
       app_settings["APPLICATIONINSIGHTS_CONNECTION_STRING"],
       app_settings["FUNCTIONS_EXTENSION_VERSION"],
       app_settings["SCM_DO_BUILD_DURING_DEPLOYMENT"],
-      site_config,
     ]
   }
 }
-

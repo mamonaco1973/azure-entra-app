@@ -2,16 +2,61 @@ import azure.functions as func
 import json
 import uuid
 import os
+import requests
 from datetime import datetime, timezone
 from azure.cosmos import CosmosClient, exceptions
+import jwt
+from jwt.algorithms import RSAAlgorithm
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
-ENDPOINT  = os.environ["COSMOS_ENDPOINT"]
-KEY       = os.environ["COSMOS_KEY"]
-DATABASE  = os.environ["COSMOS_DATABASE"]
-CONTAINER = os.environ["COSMOS_CONTAINER"]
-OWNER     = "global"
+ENDPOINT    = os.environ["COSMOS_ENDPOINT"]
+KEY         = os.environ["COSMOS_KEY"]
+DATABASE    = os.environ["COSMOS_DATABASE"]
+CONTAINER   = os.environ["COSMOS_CONTAINER"]
+
+B2C_TENANT    = os.environ["B2C_TENANT_NAME"]
+B2C_TENANT_ID = os.environ["B2C_TENANT_ID"]
+B2C_POLICY    = os.environ["B2C_POLICY_NAME"]
+CLIENT_ID     = os.environ["B2C_CLIENT_ID"]
+
+# Cached per function-app instance (warm invocations skip the JWKS fetch).
+_jwks_cache = None
+
+
+def _get_jwks():
+    global _jwks_cache
+    if _jwks_cache is None:
+        url = (
+            f"https://{B2C_TENANT}.b2clogin.com/{B2C_TENANT_ID}"
+            f"/discovery/v2.0/keys?p={B2C_POLICY}"
+        )
+        _jwks_cache = requests.get(url, timeout=5).json()
+    return _jwks_cache
+
+
+def validate_token(req: func.HttpRequest):
+    """Returns the owner ID (sub claim) if the Bearer token is valid, else None."""
+    auth = req.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        return None
+    token = auth[7:]
+    try:
+        jwks = _get_jwks()
+        header = jwt.get_unverified_header(token)
+        key_data = next((k for k in jwks["keys"] if k["kid"] == header["kid"]), None)
+        if key_data is None:
+            return None
+        public_key = RSAAlgorithm.from_jwk(json.dumps(key_data))
+        claims = jwt.decode(
+            token,
+            public_key,
+            algorithms=["RS256"],
+            audience=CLIENT_ID,
+        )
+        return claims.get("sub") or claims.get("oid")
+    except Exception:
+        return None
 
 
 def get_container():
@@ -32,6 +77,10 @@ def resp(status, body):
 
 @app.route(route="notes", methods=["POST"])
 def create_note(req: func.HttpRequest) -> func.HttpResponse:
+    owner = validate_token(req)
+    if not owner:
+        return resp(401, {"error": "Unauthorized"})
+
     try:
         body = req.get_json()
     except ValueError:
@@ -45,7 +94,7 @@ def create_note(req: func.HttpRequest) -> func.HttpResponse:
     now  = datetime.now(timezone.utc).isoformat()
     item = {
         "id":         str(uuid.uuid4()),
-        "owner":      OWNER,
+        "owner":      owner,
         "title":      title,
         "note":       note,
         "created_at": now,
@@ -60,9 +109,13 @@ def create_note(req: func.HttpRequest) -> func.HttpResponse:
 
 @app.route(route="notes", methods=["GET"])
 def list_notes(req: func.HttpRequest) -> func.HttpResponse:
+    owner = validate_token(req)
+    if not owner:
+        return resp(401, {"error": "Unauthorized"})
+
     items = list(get_container().query_items(
         query="SELECT c.id, c.title, c.note, c.created_at, c.updated_at FROM c WHERE c.owner = @owner",
-        parameters=[{"name": "@owner", "value": OWNER}],
+        parameters=[{"name": "@owner", "value": owner}],
         enable_cross_partition_query=False,
     ))
     return resp(200, {"items": items})
@@ -72,9 +125,13 @@ def list_notes(req: func.HttpRequest) -> func.HttpResponse:
 
 @app.route(route="notes/{id}", methods=["GET"])
 def get_note(req: func.HttpRequest) -> func.HttpResponse:
+    owner = validate_token(req)
+    if not owner:
+        return resp(401, {"error": "Unauthorized"})
+
     note_id = req.route_params.get("id")
     try:
-        item = get_container().read_item(item=note_id, partition_key=OWNER)
+        item = get_container().read_item(item=note_id, partition_key=owner)
         return resp(200, {
             "id":         item["id"],
             "title":      item["title"],
@@ -90,6 +147,10 @@ def get_note(req: func.HttpRequest) -> func.HttpResponse:
 
 @app.route(route="notes/{id}", methods=["PUT"])
 def update_note(req: func.HttpRequest) -> func.HttpResponse:
+    owner = validate_token(req)
+    if not owner:
+        return resp(401, {"error": "Unauthorized"})
+
     note_id = req.route_params.get("id")
     try:
         body = req.get_json()
@@ -98,7 +159,7 @@ def update_note(req: func.HttpRequest) -> func.HttpResponse:
 
     container = get_container()
     try:
-        item = container.read_item(item=note_id, partition_key=OWNER)
+        item = container.read_item(item=note_id, partition_key=owner)
     except exceptions.CosmosResourceNotFoundError:
         return resp(404, {"error": "Note not found"})
 
@@ -119,9 +180,13 @@ def update_note(req: func.HttpRequest) -> func.HttpResponse:
 
 @app.route(route="notes/{id}", methods=["DELETE"])
 def delete_note(req: func.HttpRequest) -> func.HttpResponse:
+    owner = validate_token(req)
+    if not owner:
+        return resp(401, {"error": "Unauthorized"})
+
     note_id = req.route_params.get("id")
     try:
-        get_container().delete_item(item=note_id, partition_key=OWNER)
+        get_container().delete_item(item=note_id, partition_key=owner)
     except exceptions.CosmosResourceNotFoundError:
         pass  # idempotent
     return resp(200, {"message": "Note deleted"})

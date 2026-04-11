@@ -1,28 +1,52 @@
-resource "azurerm_storage_account" "webapp" {
-  name                     = "notesweb${random_id.suffix.hex}"
-  resource_group_name      = azurerm_resource_group.webapp.name
-  location                 = azurerm_resource_group.webapp.location
-  account_tier             = "Standard"
-  account_replication_type = "LRS"
-}
-
-resource "azurerm_storage_account_static_website" "webapp" {
-  storage_account_id = azurerm_storage_account.webapp.id
-  index_document     = "index.html"
+data "azurerm_storage_account" "web" {
+  name                = var.web_storage_name
+  resource_group_name = "notes-b2c-rg"
 }
 
 resource "azurerm_storage_blob" "index" {
   name                   = "index.html"
-  storage_account_name   = azurerm_storage_account.webapp.name
+  storage_account_name   = data.azurerm_storage_account.web.name
   storage_container_name = "$web"
   type                   = "Block"
   source                 = "index.html"
   content_type           = "text/html"
   cache_control          = "no-store"
+  content_md5            = filemd5("index.html")
+}
 
-  depends_on = [azurerm_storage_account_static_website.webapp]
+resource "azurerm_storage_blob" "callback" {
+  name                   = "callback.html"
+  storage_account_name   = data.azurerm_storage_account.web.name
+  storage_container_name = "$web"
+  type                   = "Block"
+  source                 = "callback.html"
+  content_type           = "text/html"
+  cache_control          = "no-store"
+  content_md5            = filemd5("callback.html")
+}
+
+resource "azurerm_storage_blob" "favicon" {
+  name                   = "favicon.ico"
+  storage_account_name   = data.azurerm_storage_account.web.name
+  storage_container_name = "$web"
+  type                   = "Block"
+  source                 = "favicon.ico"
+  content_type           = "image/x-icon"
+  cache_control          = "no-store"
+  content_md5            = filemd5("favicon.ico")
+}
+
+resource "azurerm_storage_blob" "config" {
+  name                   = "config.json"
+  storage_account_name   = data.azurerm_storage_account.web.name
+  storage_container_name = "$web"
+  type                   = "Block"
+  source                 = "config.json"
+  content_type           = "application/json"
+  cache_control          = "no-store"
+  content_md5            = filemd5("config.json")
 }
 
 output "website_url" {
-  value = azurerm_storage_account.webapp.primary_web_endpoint
+  value = data.azurerm_storage_account.web.primary_web_endpoint
 }
