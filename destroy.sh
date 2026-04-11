@@ -14,13 +14,12 @@ terraform init -upgrade
 terraform destroy -auto-approve -var="web_storage_name=${WEB_STORAGE_NAME:-placeholder}"
 cd ..
 
-echo "NOTE: Destroying functions, Cosmos DB, web storage, and B2C app registration..."
+echo "NOTE: Destroying functions, Cosmos DB, web storage, and Entra app registration..."
 
-export TF_VAR_b2c_tenant_id="$B2C_TENANT_ID"
-export TF_VAR_b2c_tenant_name="$B2C_TENANT_NAME"
-export TF_VAR_b2c_policy_name="$B2C_POLICY_NAME"
-export TF_VAR_b2c_sp_client_id="$B2C_SP_CLIENT_ID"
-export TF_VAR_b2c_sp_client_secret="$B2C_SP_CLIENT_SECRET"
+export TF_VAR_entra_tenant_id="$ENTRA_TENANT_ID"
+export TF_VAR_entra_tenant_name="$ENTRA_TENANT_NAME"
+export TF_VAR_entra_sp_client_id="$ENTRA_SP_CLIENT_ID"
+export TF_VAR_entra_sp_client_secret="$ENTRA_SP_CLIENT_SECRET"
 
 cd 01-functions
 terraform init -upgrade

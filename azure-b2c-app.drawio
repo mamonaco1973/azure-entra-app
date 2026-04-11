@@ -24,7 +24,7 @@
         </mxCell>
 
         <!-- Azure AD B2C -->
-        <mxCell id="b2c" parent="1" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/identity/Azure_Active_Directory.svg;labelBackgroundColor=none;" value="Azure AD B2C&lt;div&gt;Hosted UI&lt;/div&gt;&lt;div&gt;User Flow (PKCE)&lt;/div&gt;" vertex="1">
+        <mxCell id="b2c" parent="1" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/identity/Azure_Active_Directory.svg;labelBackgroundColor=none;" value="Entra External ID&lt;div&gt;Hosted UI&lt;/div&gt;&lt;div&gt;User Flow (PKCE)&lt;/div&gt;" vertex="1">
           <mxGeometry height="50.3" width="57" x="290" y="-590" as="geometry" />
         </mxCell>
 

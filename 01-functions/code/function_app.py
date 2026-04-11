@@ -15,10 +15,9 @@ KEY         = os.environ["COSMOS_KEY"]
 DATABASE    = os.environ["COSMOS_DATABASE"]
 CONTAINER   = os.environ["COSMOS_CONTAINER"]
 
-B2C_TENANT    = os.environ["B2C_TENANT_NAME"]
-B2C_TENANT_ID = os.environ["B2C_TENANT_ID"]
-B2C_POLICY    = os.environ["B2C_POLICY_NAME"]
-CLIENT_ID     = os.environ["B2C_CLIENT_ID"]
+ENTRA_TENANT    = os.environ["ENTRA_TENANT_NAME"]
+ENTRA_TENANT_ID = os.environ["ENTRA_TENANT_ID"]
+CLIENT_ID       = os.environ["ENTRA_CLIENT_ID"]
 
 # Cached per function-app instance (warm invocations skip the JWKS fetch).
 _jwks_cache = None
@@ -28,8 +27,8 @@ def _get_jwks():
     global _jwks_cache
     if _jwks_cache is None:
         url = (
-            f"https://{B2C_TENANT}.b2clogin.com/{B2C_TENANT_ID}"
-            f"/discovery/v2.0/keys?p={B2C_POLICY}"
+            f"https://{ENTRA_TENANT}.ciamlogin.com/{ENTRA_TENANT_ID}"
+            f"/discovery/v2.0/keys"
         )
         _jwks_cache = requests.get(url, timeout=5).json()
     return _jwks_cache

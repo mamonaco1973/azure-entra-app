@@ -18,10 +18,10 @@ output "web_base_url" {
   value = azurerm_storage_account.web.primary_web_endpoint
 }
 
-output "b2c_client_id" {
+output "entra_client_id" {
   value = azuread_application.notes.client_id
 }
 
-output "b2c_authority" {
-  value = "https://${var.b2c_tenant_name}.b2clogin.com/${var.b2c_tenant_id}/${var.b2c_policy_name}"
+output "entra_authority" {
+  value = "https://${var.entra_tenant_name}.ciamlogin.com/${var.entra_tenant_id}/v2.0"
 }

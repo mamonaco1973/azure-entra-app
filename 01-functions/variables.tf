@@ -4,28 +4,23 @@ variable "location" {
   default     = "Central US"
 }
 
-variable "b2c_tenant_id" {
-  description = "Azure AD B2C tenant ID (GUID)"
+variable "entra_tenant_id" {
+  description = "Microsoft Entra External ID tenant ID (GUID)"
   type        = string
 }
 
-variable "b2c_tenant_name" {
-  description = "B2C tenant name prefix (e.g. 'contosob2c' from contosob2c.onmicrosoft.com)"
+variable "entra_tenant_name" {
+  description = "Entra External tenant name prefix (e.g. 'mynotesapp' from mynotesapp.onmicrosoft.com)"
   type        = string
 }
 
-variable "b2c_policy_name" {
-  description = "B2C user flow policy name (e.g. 'B2C_1_signupsignin')"
+variable "entra_sp_client_id" {
+  description = "Client ID of a service principal registered IN the Entra External tenant"
   type        = string
 }
 
-variable "b2c_sp_client_id" {
-  description = "Client ID of a service principal registered IN the B2C tenant"
-  type        = string
-}
-
-variable "b2c_sp_client_secret" {
-  description = "Client secret of the B2C tenant service principal"
+variable "entra_sp_client_secret" {
+  description = "Client secret of the Entra External tenant service principal"
   type        = string
   sensitive   = true
 }

@@ -1,7 +1,7 @@
 # Web hosting storage — lives here (not in 02-webapp) so the URL is known
-# before the B2C app registration redirect URI is configured.
+# before the Entra External ID app registration redirect URI is configured.
 resource "azurerm_storage_account" "web" {
-  name                     = "notesb2cweb${random_id.suffix.hex}"
+  name                     = "notesentraweb${random_id.suffix.hex}"
   resource_group_name      = azurerm_resource_group.notes.name
   location                 = azurerm_resource_group.notes.location
   account_tier             = "Standard"

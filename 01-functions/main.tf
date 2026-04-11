@@ -23,13 +23,13 @@ provider "azurerm" {
   }
 }
 
-# Points at the B2C tenant, not the main subscription tenant.
-# Requires a service principal registered IN the B2C tenant with
+# Points at the Entra External tenant, not the main subscription tenant.
+# Requires a service principal registered IN the Entra External tenant with
 # Application.ReadWrite.All on Microsoft Graph.
 provider "azuread" {
-  tenant_id     = var.b2c_tenant_id
-  client_id     = var.b2c_sp_client_id
-  client_secret = var.b2c_sp_client_secret
+  tenant_id     = var.entra_tenant_id
+  client_id     = var.entra_sp_client_id
+  client_secret = var.entra_sp_client_secret
 }
 
 resource "random_id" "suffix" {
@@ -37,6 +37,6 @@ resource "random_id" "suffix" {
 }
 
 resource "azurerm_resource_group" "notes" {
-  name     = "notes-b2c-rg"
+  name     = "notes-entra-rg"
   location = var.location
 }

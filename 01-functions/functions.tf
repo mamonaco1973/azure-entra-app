@@ -1,5 +1,5 @@
 resource "azurerm_storage_account" "functions" {
-  name                     = "notesb2cfunc${random_id.suffix.hex}"
+  name                     = "notesentrafunc${random_id.suffix.hex}"
   resource_group_name      = azurerm_resource_group.notes.name
   location                 = azurerm_resource_group.notes.location
   account_tier             = "Standard"
@@ -14,7 +14,7 @@ resource "azurerm_storage_container" "func_code" {
 }
 
 resource "azurerm_service_plan" "notes" {
-  name                = "notes-b2c-plan"
+  name                = "notes-entra-plan"
   resource_group_name = azurerm_resource_group.notes.name
   location            = azurerm_resource_group.notes.location
   os_type             = "Linux"
@@ -22,14 +22,14 @@ resource "azurerm_service_plan" "notes" {
 }
 
 resource "azurerm_application_insights" "notes" {
-  name                = "notes-b2c-ai"
+  name                = "notes-entra-ai"
   resource_group_name = azurerm_resource_group.notes.name
   location            = azurerm_resource_group.notes.location
   application_type    = "web"
 }
 
 resource "azurerm_function_app_flex_consumption" "notes" {
-  name                = "notes-b2c-func-${random_id.suffix.hex}"
+  name                = "notes-entra-func-${random_id.suffix.hex}"
   resource_group_name = azurerm_resource_group.notes.name
   location            = azurerm_resource_group.notes.location
 
@@ -64,10 +64,9 @@ resource "azurerm_function_app_flex_consumption" "notes" {
     COSMOS_DATABASE                       = azurerm_cosmosdb_sql_database.notes.name
     COSMOS_CONTAINER                      = azurerm_cosmosdb_sql_container.notes.name
     AzureWebJobsFeatureFlags              = "EnableWorkerIndexing"
-    B2C_TENANT_NAME                       = var.b2c_tenant_name
-    B2C_TENANT_ID                         = var.b2c_tenant_id
-    B2C_POLICY_NAME                       = var.b2c_policy_name
-    B2C_CLIENT_ID                         = azuread_application.notes.client_id
+    ENTRA_TENANT_NAME                     = var.entra_tenant_name
+    ENTRA_TENANT_ID                       = var.entra_tenant_id
+    ENTRA_CLIENT_ID                       = azuread_application.notes.client_id
   }
 
   lifecycle {

@@ -4,17 +4,16 @@ set -euo pipefail
 ./check_env.sh
 
 
-# ── Phase 1: Infrastructure (Cosmos DB + Functions + Web Storage + B2C App Reg)
+# ── Phase 1: Infrastructure (Cosmos DB + Functions + Web Storage + Entra App Reg)
 
 echo "NOTE: Deploying infrastructure..."
 cd 01-functions
 
-# Pass B2C config as Terraform variables.
-export TF_VAR_b2c_tenant_id="$B2C_TENANT_ID"
-export TF_VAR_b2c_tenant_name="$B2C_TENANT_NAME"
-export TF_VAR_b2c_policy_name="$B2C_POLICY_NAME"
-export TF_VAR_b2c_sp_client_id="$B2C_SP_CLIENT_ID"
-export TF_VAR_b2c_sp_client_secret="$B2C_SP_CLIENT_SECRET"
+# Pass Entra External ID config as Terraform variables.
+export TF_VAR_entra_tenant_id="$ENTRA_TENANT_ID"
+export TF_VAR_entra_tenant_name="$ENTRA_TENANT_NAME"
+export TF_VAR_entra_sp_client_id="$ENTRA_SP_CLIENT_ID"
+export TF_VAR_entra_sp_client_secret="$ENTRA_SP_CLIENT_SECRET"
 
 terraform init -upgrade
 terraform apply -auto-approve
@@ -22,8 +21,8 @@ terraform apply -auto-approve
 RESOURCE_GROUP=$(terraform output -raw resource_group_name)
 WEB_STORAGE_NAME=$(terraform output -raw web_storage_name)
 WEB_BASE_URL=$(terraform output -raw web_base_url)
-B2C_CLIENT_ID=$(terraform output -raw b2c_client_id)
-B2C_AUTHORITY=$(terraform output -raw b2c_authority)
+ENTRA_CLIENT_ID=$(terraform output -raw entra_client_id)
+ENTRA_AUTHORITY=$(terraform output -raw entra_authority)
 
 cd ..
 
@@ -42,7 +41,7 @@ zip -r app.zip . \
 
 FUNC_APP_NAME=$(az functionapp list \
   --resource-group "$RESOURCE_GROUP" \
-  --query "[?starts_with(name, 'notes-b2c-func-')].name" \
+  --query "[?starts_with(name, 'notes-entra-func-')].name" \
   --output tsv)
 
 az functionapp deployment source config-zip \
@@ -71,10 +70,10 @@ REDIRECT_URI="${WEB_BASE_URL}callback.html"
 
 cat > 02-webapp/config.json <<EOF
 {
-  "authority":  "${B2C_AUTHORITY}",
-  "clientId":   "${B2C_CLIENT_ID}",
+  "authority":   "${ENTRA_AUTHORITY}",
+  "clientId":    "${ENTRA_CLIENT_ID}",
   "redirectUri": "${REDIRECT_URI}",
-  "apiBaseUrl": "${API_BASE}"
+  "apiBaseUrl":  "${API_BASE}"
 }
 EOF
 

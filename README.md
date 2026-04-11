@@ -1,10 +1,10 @@
-# Azure Serverless Notes API with Azure Functions, Cosmos DB, and Azure AD B2C
+# Azure Serverless Notes API with Azure Functions, Cosmos DB, and Microsoft Entra External ID
 
 This project delivers a fully automated **serverless CRUD API** on Azure, secured
-with **Azure AD B2C** authentication. It uses **Azure Functions**, **Azure Cosmos
-DB**, and **Azure Blob Storage**, provisioned entirely with **Terraform** and
-deployed with shell scripts — no virtual machines, no manual portal configuration
-beyond the one-time B2C tenant setup.
+with **Microsoft Entra External ID** authentication. It uses **Azure Functions**,
+**Azure Cosmos DB**, and **Azure Blob Storage**, provisioned entirely with **Terraform**
+and deployed with shell scripts — no virtual machines, no manual portal configuration
+beyond the one-time Entra External tenant setup.
 
 For testing and demonstration purposes, a lightweight **HTML web frontend**
 interacts directly with the deployed API, allowing signed-in users to create, view,
@@ -21,8 +21,8 @@ frontend.
 
 Key capabilities demonstrated:
 
-1. **Authenticated CRUD API** — All five REST endpoints require a valid Azure AD
-   B2C access token. The function code validates the JWT signature against B2C's
+1. **Authenticated CRUD API** — All five REST endpoints require a valid Entra External
+   ID access token. The function code validates the JWT signature against the Entra
    JWKS endpoint and rejects unsigned or expired tokens with HTTP 401.
 2. **Per-User Data Isolation** — The Cosmos DB partition key `/owner` is set from
    the JWT `sub` claim. Each user can only read and write their own notes — enforced
@@ -33,7 +33,7 @@ Key capabilities demonstrated:
 4. **Stateless Compute Layer** — All five operations are handled by a single
    Function App on a Flex Consumption plan — zero idle cost, scales on demand.
 5. **Infrastructure as Code (IaC)** — Terraform provisions the Function App, Cosmos
-   DB, Blob Storage, and B2C app registration in a repeatable, auditable way.
+   DB, Blob Storage, and Entra app registration in a repeatable, auditable way.
 
 ---
 
@@ -42,14 +42,14 @@ Key capabilities demonstrated:
 ```
 1. User clicks "Sign In" in the browser
 2. SPA generates PKCE verifier + challenge, stores verifier in sessionStorage
-3. Browser redirects to B2C Hosted UI (authorize endpoint)
+3. Browser redirects to Entra External ID hosted sign-in UI (authorize endpoint)
 4. User creates an account or signs in with email + password
-5. B2C redirects to callback.html?code=...&state=...
+5. Entra redirects to callback.html?code=...&state=...
 6. callback.html validates state, exchanges code + verifier for tokens
 7. access_token, id_token, refresh_token stored in sessionStorage
 8. Browser redirects to index.html
 9. All API calls include Authorization: Bearer <access_token>
-10. Function validates JWT signature via B2C JWKS, extracts sub as owner
+10. Function validates JWT signature via Entra JWKS, extracts sub as owner
 11. Cosmos DB queries are scoped to the owner partition key
 ```
 
@@ -69,7 +69,7 @@ All endpoints require `Authorization: Bearer <access_token>` and return JSON.
 
 | Aspect | Behavior |
 |---|---|
-| Authentication | Azure AD B2C JWT (Bearer token, RS256) |
+| Authentication | Entra External ID JWT (Bearer token, RS256) |
 | Authorization | Owner scoped — callers can only access their own notes |
 | Content-Type | `application/json` |
 | Unauthenticated | HTTP 401 |
@@ -145,30 +145,32 @@ curl -s -X DELETE https://<func-app>.azurewebsites.net/api/notes/<id> \
 * [Terraform](https://developer.hashicorp.com/terraform/install)
 * [jq](https://jqlang.github.io/jq/download/)
 
-### One-time B2C setup (Azure Portal)
+### One-time Entra External ID setup (Azure Portal)
 
-The B2C tenant and user flow must be created manually before the first deploy.
+The External tenant and user flow must be created manually before the first deploy.
 Everything else is automated.
 
-**1. Create an Azure AD B2C tenant**
+**1. Create a Microsoft Entra External ID tenant**
 
-In the Azure Portal, search "Azure AD B2C" → Create a new Azure AD B2C Tenant.
-Note the **tenant domain prefix** (e.g. `mynotesb2c`) and the **tenant ID (GUID)**
-from the tenant overview.
+In the Azure Portal, go to **Microsoft Entra ID → Overview → Manage tenants → New**.
+Select **External** as the tenant type. Choose a subdomain name — this becomes
+`ENTRA_TENANT_NAME` (e.g. `mynotesapp` from `mynotesapp.onmicrosoft.com`). Note the
+**tenant ID (GUID)** from the tenant overview — this is `ENTRA_TENANT_ID`.
 
 **2. Create a sign-up/sign-in user flow**
 
-Switch your portal directory to the B2C tenant. Go to **Azure AD B2C → User flows
-→ New user flow → Sign up and sign in → Recommended**. Name it `signupsignin`
-(Azure prepends `B2C_1_`, giving `B2C_1_signupsignin`). Select **Email signup**,
-collect **Email Address**, return claims **Email Addresses** and **User's Object ID**.
+Switch your portal directory to the External tenant. Go to **Microsoft Entra ID →
+External Identities → User flows → New user flow**. Select **Sign up and sign in**.
+Under **Identity providers**, select **Email with password**. Under **User attributes**,
+collect and return **Email Address**. Click **Create**.
 
-**3. Create a service principal in the B2C tenant**
+**3. Create a service principal in the Entra External tenant**
 
-Still in the B2C tenant, go to **App registrations → New registration**. After
-creation, add a client secret. Grant the app `Application.ReadWrite.All` on
-**Microsoft Graph** (application permission, not delegated) and click
-**Grant admin consent**. Note the client ID and secret.
+Still in the External tenant, go to **App registrations → New registration**. After
+creation, go to **Certificates & secrets** and add a client secret. Go to **API
+permissions → Add a permission → Microsoft Graph → Application permissions**, add
+`Application.ReadWrite.All`, then click **Grant admin consent**. Note the
+**Application (client) ID** (`ENTRA_SP_CLIENT_ID`) and the secret (`ENTRA_SP_CLIENT_SECRET`).
 
 ### Required environment variables
 
@@ -179,12 +181,11 @@ export ARM_CLIENT_SECRET="..."
 export ARM_SUBSCRIPTION_ID="..."
 export ARM_TENANT_ID="..."
 
-# Azure AD B2C
-export B2C_TENANT_ID="..."          # GUID of the B2C tenant
-export B2C_TENANT_NAME="mynotesb2c" # Domain prefix only (no .onmicrosoft.com)
-export B2C_POLICY_NAME="B2C_1_signupsignin"
-export B2C_SP_CLIENT_ID="..."       # App registered IN the B2C tenant
-export B2C_SP_CLIENT_SECRET="..."
+# Microsoft Entra External ID
+export ENTRA_TENANT_ID="..."           # GUID of the External tenant
+export ENTRA_TENANT_NAME="mynotesapp"  # Domain prefix only (no .onmicrosoft.com)
+export ENTRA_SP_CLIENT_ID="..."        # Service principal registered IN the External tenant
+export ENTRA_SP_CLIENT_SECRET="..."
 ```
 
 ---
@@ -215,13 +216,13 @@ Initializing the backend...
 
 1. Runs `check_env.sh` — validates CLI tools, env vars, and Azure authentication
 2. Deploys `01-functions` — resource group, Cosmos DB, Function App, Blob Storage
-   web account, and B2C app registration (with redirect URI pointed at the storage URL)
+   web account, and Entra app registration (with redirect URI pointed at the storage URL)
 3. Packages and deploys the Python function code via `az functionapp deployment source config-zip`
-4. Generates `02-webapp/config.json` with the B2C authority, client ID, redirect URI,
+4. Generates `02-webapp/config.json` with the Entra authority, client ID, redirect URI,
    and API base URL
 5. Copies `index.html.tmpl` → `index.html`
-6. Deploys `02-webapp` — uploads `index.html`, `callback.html`, and `config.json`
-   to the `$web` container
+6. Deploys `02-webapp` — uploads `index.html`, `callback.html`, `config.json`, and
+   `favicon.ico` to the `$web` container
 7. Runs `validate.sh` to print the web app URL
 
 To tear down all resources:
@@ -235,7 +236,7 @@ To tear down all resources:
 ## Build Results
 
 When the deployment completes, the following resources are created in a single
-resource group `notes-b2c-rg`:
+resource group `notes-entra-rg`:
 
 - **Azure Cosmos DB:**
   - Account with Session consistency and GlobalDocumentDB kind
@@ -248,19 +249,19 @@ resource group `notes-b2c-rg`:
   - Python 3.11 runtime with Python v2 programming model
   - Single `function_app.py` implementing all five routes
   - CORS restricted to the Blob Storage origin
-  - B2C tenant name, tenant ID, policy, and client ID injected via app settings
+  - Entra tenant name, tenant ID, and client ID injected via app settings
   - JWT validation (`PyJWT` + `cryptography`) performed in function code
 
 - **Static Web App (Blob Storage):**
-  - Storage account `notesb2cweb<suffix>` with static website hosting
-  - `index.html`, `callback.html`, and `config.json` in the `$web` container
+  - Storage account `notesentraweb<suffix>` with static website hosting
+  - `index.html`, `callback.html`, `config.json`, and `favicon.ico` in the `$web` container
   - PKCE OAuth2 flow — no client secret exposed in the browser
   - Tokens stored in `sessionStorage`
 
-- **Azure AD B2C:**
-  - App registration `notes-b2c-app` (SPA platform, no client secret)
+- **Microsoft Entra External ID:**
+  - App registration `notes-entra-app` (SPA platform, no client secret)
   - Redirect URI: `https://<storage>.z1.web.core.windows.net/callback.html`
-  - Managed by Terraform via the `azuread` provider pointed at the B2C tenant
+  - Managed by Terraform via the `azuread` provider pointed at the External tenant
 
 ---
 
@@ -275,19 +276,20 @@ azure-b2c-app/
 │   │   └── host.json          # Extension bundle v4
 │   ├── b2c.tf                 # azuread_application (SPA, PKCE, redirect URI)
 │   ├── cosmosdb.tf            # Cosmos DB account, database, container (/owner partition)
-│   ├── functions.tf           # Storage, service plan, Function App + B2C env vars
+│   ├── functions.tf           # Storage, service plan, Function App + Entra env vars
 │   ├── main.tf                # azurerm + azuread providers, resource group, random suffix
-│   ├── outputs.tf             # URLs, storage name, B2C client ID + authority
-│   ├── storage.tf             # Web hosting storage account (here so URL is known for B2C redirect URI)
-│   └── variables.tf           # location + B2C variables
+│   ├── outputs.tf             # URLs, storage name, Entra client ID + authority
+│   ├── storage.tf             # Web hosting storage account (here so URL is known for Entra redirect URI)
+│   └── variables.tf           # location + Entra variables
 ├── 02-webapp/
 │   ├── callback.html          # PKCE auth code exchange; stores tokens in sessionStorage
 │   ├── config.json            # Generated at deploy time — not committed
+│   ├── favicon.ico            # Site icon
 │   ├── index.html.tmpl        # SPA with auth gate, PKCE sign-in/out, JWT in all API calls
 │   ├── main.tf                # azurerm provider + web_storage_name variable
-│   └── storage.tf             # Blob uploads only (index.html, callback.html, config.json)
+│   └── storage.tf             # Blob uploads only (index.html, callback.html, config.json, favicon.ico)
 ├── apply.sh                   # Full deployment orchestrator (4 phases)
 ├── destroy.sh                 # Reverse teardown
 ├── validate.sh                # Prints web app URL
-└── check_env.sh               # Validates tools, B2C env vars, and Azure auth
+└── check_env.sh               # Validates tools, Entra env vars, and Azure auth
 ```
