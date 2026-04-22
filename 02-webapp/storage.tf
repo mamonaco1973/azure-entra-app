@@ -1,6 +1,6 @@
 data "azurerm_storage_account" "web" {
   name                = var.web_storage_name
-  resource_group_name = "notes-b2c-rg"
+  resource_group_name = "notes-entra-rg"
 }
 
 resource "azurerm_storage_blob" "index" {
