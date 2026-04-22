@@ -16,3 +16,9 @@ resource "azuread_application" "notes" {
     ]
   }
 }
+
+# Service principal is required for the app to appear in the user flow
+# Applications picker so self-service sign-up can be enabled.
+resource "azuread_service_principal" "notes" {
+  client_id = azuread_application.notes.client_id
+}
