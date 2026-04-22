@@ -23,5 +23,5 @@ output "entra_client_id" {
 }
 
 output "entra_authority" {
-  value = "https://${var.entra_tenant_name}.ciamlogin.com/${var.entra_tenant_id}/v2.0"
+  value = "https://${var.entra_tenant_name}.ciamlogin.com/${var.entra_tenant_id}"
 }
