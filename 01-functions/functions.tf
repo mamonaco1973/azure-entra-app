@@ -74,6 +74,8 @@ resource "azurerm_function_app_flex_consumption" "notes" {
       app_settings["APPLICATIONINSIGHTS_CONNECTION_STRING"],
       app_settings["FUNCTIONS_EXTENSION_VERSION"],
       app_settings["SCM_DO_BUILD_DURING_DEPLOYMENT"],
+      # Provider bug: cors block count flips 0→1 between plan and apply.
+      site_config,
     ]
   }
 }
