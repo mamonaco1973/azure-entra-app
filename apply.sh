@@ -27,6 +27,61 @@ ENTRA_AUTHORITY=$(terraform output -raw entra_authority)
 cd ..
 
 
+# ── Phase 1.5: Associate app with Entra user flow via Graph API ───────────────
+
+echo "NOTE: Associating notes-entra-app with user flow '${ENTRA_USER_FLOW_NAME}'..."
+
+# The ARM SP has no Graph permissions in the External tenant — acquire a
+# separate token using the Entra-scoped SP.
+GRAPH_TOKEN=$(curl -s -X POST \
+  "https://login.microsoftonline.com/${ENTRA_TENANT_ID}/oauth2/v2.0/token" \
+  --data-urlencode "grant_type=client_credentials" \
+  --data-urlencode "client_id=${ENTRA_SP_CLIENT_ID}" \
+  --data-urlencode "client_secret=${ENTRA_SP_CLIENT_SECRET}" \
+  --data-urlencode "scope=https://graph.microsoft.com/.default" \
+  | jq -r '.access_token')
+
+if [[ -z "$GRAPH_TOKEN" || "$GRAPH_TOKEN" == "null" ]]; then
+  echo "ERROR: Failed to acquire Graph API token for user flow association."
+  exit 1
+fi
+
+# Find the user flow ID by display name.
+FLOW_ID=$(curl -s -G \
+  --data-urlencode "\$filter=displayName eq '${ENTRA_USER_FLOW_NAME}'" \
+  "https://graph.microsoft.com/v1.0/identity/authenticationEventsFlows" \
+  -H "Authorization: Bearer ${GRAPH_TOKEN}" \
+  | jq -r '.value[0].id')
+
+if [[ -z "$FLOW_ID" || "$FLOW_ID" == "null" ]]; then
+  echo "ERROR: User flow '${ENTRA_USER_FLOW_NAME}' not found in tenant."
+  exit 1
+fi
+
+# Skip if already linked — makes apply.sh idempotent.
+ALREADY_LINKED=$(curl -s \
+  "https://graph.microsoft.com/v1.0/identity/authenticationEventsFlows/${FLOW_ID}/conditions/applications/includeApplications" \
+  -H "Authorization: Bearer ${GRAPH_TOKEN}" \
+  | jq -r --arg id "${ENTRA_CLIENT_ID}" '.value[] | select(.appId == $id) | .appId')
+
+if [[ -n "$ALREADY_LINKED" ]]; then
+  echo "NOTE: App already associated with user flow '${ENTRA_USER_FLOW_NAME}'."
+else
+  HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+    "https://graph.microsoft.com/v1.0/identity/authenticationEventsFlows/${FLOW_ID}/conditions/applications/includeApplications" \
+    -H "Authorization: Bearer ${GRAPH_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "{\"@odata.type\": \"#microsoft.graph.authenticationConditionApplication\", \"appId\": \"${ENTRA_CLIENT_ID}\"}")
+
+  if [[ "$HTTP_STATUS" == "201" ]]; then
+    echo "NOTE: App associated with user flow '${ENTRA_USER_FLOW_NAME}'."
+  else
+    echo "ERROR: Failed to associate app with user flow (HTTP ${HTTP_STATUS})."
+    exit 1
+  fi
+fi
+
+
 # ── Phase 2: Deploy function code ─────────────────────────────────────────────
 
 echo "NOTE: Packaging and deploying function code..."

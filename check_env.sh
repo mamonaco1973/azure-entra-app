@@ -33,6 +33,7 @@ required_vars=(
   "ENTRA_TENANT_NAME"
   "ENTRA_SP_CLIENT_ID"
   "ENTRA_SP_CLIENT_SECRET"
+  "ENTRA_USER_FLOW_NAME"
 )
 
 all_set=true

@@ -88,8 +88,9 @@ collect and return **Email Address**. Click **Create**.
 Still in the External tenant, go to **App registrations → New registration**. After
 creation, go to **Certificates & secrets** and add a client secret. Go to **API
 permissions → Add a permission → Microsoft Graph → Application permissions**, add
-`Application.ReadWrite.All`, then click **Grant admin consent**. Note the
-**Application (client) ID** (`ENTRA_SP_CLIENT_ID`) and the secret (`ENTRA_SP_CLIENT_SECRET`).
+`Application.ReadWrite.All` and `EventListener.ReadWrite.All`, then click
+**Grant admin consent**. Note the **Application (client) ID**
+(`ENTRA_SP_CLIENT_ID`) and the secret (`ENTRA_SP_CLIENT_SECRET`).
 
 ### Required environment variables
 
@@ -105,6 +106,7 @@ export ENTRA_TENANT_ID="..."           # GUID of the External tenant
 export ENTRA_TENANT_NAME="mynotesapp"  # Domain prefix only (no .onmicrosoft.com)
 export ENTRA_SP_CLIENT_ID="..."        # Service principal registered IN the External tenant
 export ENTRA_SP_CLIENT_SECRET="..."
+export ENTRA_USER_FLOW_NAME="..."      # Display name of the sign-up/sign-in user flow
 ```
 
 ---
