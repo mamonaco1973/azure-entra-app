@@ -55,87 +55,6 @@ Key capabilities demonstrated:
 
 ---
 
-## API Endpoints
-
-All endpoints require `Authorization: Bearer <access_token>` and return JSON.
-
-| Method | Path | Purpose | Input | Cosmos DB Operation |
-|---|---|---|---|---|
-| POST | `/api/notes` | Create a new note | JSON body (`title`, `note`) | `create_item` |
-| GET | `/api/notes` | List caller's notes | None (owner from JWT) | `query_items` |
-| GET | `/api/notes/{id}` | Get a single note | Path param (`id`) | `read_item` |
-| PUT | `/api/notes/{id}` | Update a note | Path param + JSON body | `replace_item` |
-| DELETE | `/api/notes/{id}` | Delete a note | Path param (`id`) | `delete_item` |
-
-| Aspect | Behavior |
-|---|---|
-| Authentication | Entra External ID JWT (Bearer token, RS256) |
-| Authorization | Owner scoped — callers can only access their own notes |
-| Content-Type | `application/json` |
-| Unauthenticated | HTTP 401 |
-| Not found / wrong owner | HTTP 404 |
-
-### POST /api/notes
-
-**Request:**
-```bash
-curl -s -X POST https://<func-app>.azurewebsites.net/api/notes \
-  -H "Authorization: Bearer <access_token>" \
-  -H "Content-Type: application/json" \
-  -d '{"title":"Test Note","note":"This is my note"}'
-```
-
-**Response (201):**
-```json
-{
-  "id": "2f2d0c5a-9f5f-4d7d-9e2c-1c8a5b8e3c21",
-  "title": "Test Note",
-  "note": "This is my note"
-}
-```
-
-### GET /api/notes
-
-**Response (200):**
-```json
-{
-  "items": [
-    {
-      "id": "2f2d0c5a-9f5f-4d7d-9e2c-1c8a5b8e3c21",
-      "title": "Test Note",
-      "note": "This is my note",
-      "created_at": "2026-04-10T14:12:09.123456+00:00",
-      "updated_at": "2026-04-10T14:12:09.123456+00:00"
-    }
-  ]
-}
-```
-
-### GET /api/notes/{id}
-
-```bash
-curl -s https://<func-app>.azurewebsites.net/api/notes/<id> \
-  -H "Authorization: Bearer <access_token>"
-```
-
-### PUT /api/notes/{id}
-
-```bash
-curl -s -X PUT https://<func-app>.azurewebsites.net/api/notes/<id> \
-  -H "Authorization: Bearer <access_token>" \
-  -H "Content-Type: application/json" \
-  -d '{"title":"Updated Title","note":"Updated content"}'
-```
-
-### DELETE /api/notes/{id}
-
-```bash
-curl -s -X DELETE https://<func-app>.azurewebsites.net/api/notes/<id> \
-  -H "Authorization: Bearer <access_token>"
-```
-
----
-
 ## Prerequisites
 
 ### Tools
@@ -262,6 +181,87 @@ resource group `notes-entra-rg`:
   - App registration `notes-entra-app` (SPA platform, no client secret)
   - Redirect URI: `https://<storage>.z1.web.core.windows.net/callback.html`
   - Managed by Terraform via the `azuread` provider pointed at the External tenant
+
+---
+
+## API Endpoints
+
+All endpoints require `Authorization: Bearer <access_token>` and return JSON.
+
+| Method | Path | Purpose | Input | Cosmos DB Operation |
+|---|---|---|---|---|
+| POST | `/api/notes` | Create a new note | JSON body (`title`, `note`) | `create_item` |
+| GET | `/api/notes` | List caller's notes | None (owner from JWT) | `query_items` |
+| GET | `/api/notes/{id}` | Get a single note | Path param (`id`) | `read_item` |
+| PUT | `/api/notes/{id}` | Update a note | Path param + JSON body | `replace_item` |
+| DELETE | `/api/notes/{id}` | Delete a note | Path param (`id`) | `delete_item` |
+
+| Aspect | Behavior |
+|---|---|
+| Authentication | Entra External ID JWT (Bearer token, RS256) |
+| Authorization | Owner scoped — callers can only access their own notes |
+| Content-Type | `application/json` |
+| Unauthenticated | HTTP 401 |
+| Not found / wrong owner | HTTP 404 |
+
+### POST /api/notes
+
+**Request:**
+```bash
+curl -s -X POST https://<func-app>.azurewebsites.net/api/notes \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Test Note","note":"This is my note"}'
+```
+
+**Response (201):**
+```json
+{
+  "id": "2f2d0c5a-9f5f-4d7d-9e2c-1c8a5b8e3c21",
+  "title": "Test Note",
+  "note": "This is my note"
+}
+```
+
+### GET /api/notes
+
+**Response (200):**
+```json
+{
+  "items": [
+    {
+      "id": "2f2d0c5a-9f5f-4d7d-9e2c-1c8a5b8e3c21",
+      "title": "Test Note",
+      "note": "This is my note",
+      "created_at": "2026-04-10T14:12:09.123456+00:00",
+      "updated_at": "2026-04-10T14:12:09.123456+00:00"
+    }
+  ]
+}
+```
+
+### GET /api/notes/{id}
+
+```bash
+curl -s https://<func-app>.azurewebsites.net/api/notes/<id> \
+  -H "Authorization: Bearer <access_token>"
+```
+
+### PUT /api/notes/{id}
+
+```bash
+curl -s -X PUT https://<func-app>.azurewebsites.net/api/notes/<id> \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Updated Title","note":"Updated content"}'
+```
+
+### DELETE /api/notes/{id}
+
+```bash
+curl -s -X DELETE https://<func-app>.azurewebsites.net/api/notes/<id> \
+  -H "Authorization: Bearer <access_token>"
+```
 
 ---
 
