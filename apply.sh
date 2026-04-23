@@ -17,6 +17,7 @@ export TF_VAR_entra_sp_client_secret="$ENTRA_SP_CLIENT_SECRET"
 
 terraform init -upgrade
 terraform apply -auto-approve
+terraform apply -auto-approve
 
 RESOURCE_GROUP=$(terraform output -raw resource_group_name)
 WEB_STORAGE_NAME=$(terraform output -raw web_storage_name)
