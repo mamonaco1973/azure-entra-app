@@ -66,3 +66,33 @@ if [ $? -ne 0 ]; then
 else
   echo "NOTE: Successfully logged into Azure."
 fi
+
+echo "NOTE: Validating Entra External ID credentials and user flow..."
+
+GRAPH_TOKEN=$(curl -s -X POST \
+  "https://login.microsoftonline.com/${ENTRA_TENANT_ID}/oauth2/v2.0/token" \
+  --data-urlencode "grant_type=client_credentials" \
+  --data-urlencode "client_id=${ENTRA_SP_CLIENT_ID}" \
+  --data-urlencode "client_secret=${ENTRA_SP_CLIENT_SECRET}" \
+  --data-urlencode "scope=https://graph.microsoft.com/.default" \
+  | jq -r '.access_token')
+
+if [[ -z "$GRAPH_TOKEN" || "$GRAPH_TOKEN" == "null" ]]; then
+  echo "ERROR: Failed to acquire Graph API token. Check ENTRA_SP_CLIENT_ID and ENTRA_SP_CLIENT_SECRET."
+  exit 1
+fi
+
+echo "NOTE: Entra service principal credentials are valid."
+
+FLOW_ID=$(curl -s -G \
+  --data-urlencode "\$filter=displayName eq '${ENTRA_USER_FLOW_NAME}'" \
+  "https://graph.microsoft.com/v1.0/identity/authenticationEventsFlows" \
+  -H "Authorization: Bearer ${GRAPH_TOKEN}" \
+  | jq -r '.value[0].id')
+
+if [[ -z "$FLOW_ID" || "$FLOW_ID" == "null" ]]; then
+  echo "ERROR: User flow '${ENTRA_USER_FLOW_NAME}' not found in tenant '${ENTRA_TENANT_NAME}'. Check ENTRA_USER_FLOW_NAME."
+  exit 1
+fi
+
+echo "NOTE: User flow '${ENTRA_USER_FLOW_NAME}' found (id: ${FLOW_ID})."
