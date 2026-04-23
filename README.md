@@ -17,7 +17,7 @@ handle HTTP routing and JWT validation, Cosmos DB provides fully managed NoSQL
 persistence scoped per authenticated user, and Blob Storage hosts the static
 frontend.
 
-![diagram](azure-b2c-app.png)
+![diagram](azure-entra-app.png)
 
 Key capabilities demonstrated:
 
