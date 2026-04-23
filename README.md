@@ -17,8 +17,6 @@ handle HTTP routing and JWT validation, Cosmos DB provides fully managed NoSQL
 persistence scoped per authenticated user, and Blob Storage hosts the static
 frontend.
 
-![diagram](azure-entra-app.png)
-
 Key capabilities demonstrated:
 
 1. **Authenticated CRUD API** — All five REST endpoints require a valid Entra External
@@ -38,6 +36,8 @@ Key capabilities demonstrated:
 ---
 
 ## Authentication Flow
+
+![diagram](azure-entra-app.png)
 
 ```
 1. User clicks "Sign In" in the browser
