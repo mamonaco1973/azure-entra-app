@@ -16,7 +16,7 @@ export TF_VAR_entra_sp_client_id="$ENTRA_SP_CLIENT_ID"
 export TF_VAR_entra_sp_client_secret="$ENTRA_SP_CLIENT_SECRET"
 
 terraform init -upgrade
-terraform apply -auto-approve
+terraform apply -auto-approve || true
 terraform apply -auto-approve
 
 RESOURCE_GROUP=$(terraform output -raw resource_group_name)
