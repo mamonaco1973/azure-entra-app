@@ -1,5 +1,6 @@
 ## Create Microsoft Entra External Tenant and Configure Application
 
+0. Now let's configure the Microsoft Entra ID tenant needed for web app authentication.
 1. Navigate to the **Microsoft Entra ID** blade in the Azure portal.
 2. Select **Manage tenants**.
 3. Select **Create**.
