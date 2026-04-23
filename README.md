@@ -114,8 +114,8 @@ export ENTRA_USER_FLOW_NAME="..."      # Display name of the sign-up/sign-in use
 ## Download this Repository
 
 ```bash
-git clone https://github.com/mamonaco1973/azure-b2c-app.git
-cd azure-b2c-app
+git clone https://github.com/mamonaco1973/azure-entra-app.git
+cd azure-entra-app
 ```
 
 ## Build the Code
@@ -124,7 +124,7 @@ Run [check_env.sh](check_env.sh) to validate your environment, then run
 [apply.sh](apply.sh) to provision all infrastructure and deploy the application.
 
 ```bash
-~/azure-b2c-app$ ./apply.sh
+~/azure-entra-app$ ./apply.sh
 NOTE: All required commands are available.
 NOTE: All required environment variables are set.
 NOTE: Successfully logged into Azure.
@@ -270,13 +270,13 @@ curl -s -X DELETE https://<func-app>.azurewebsites.net/api/notes/<id> \
 ## Project Structure
 
 ```
-azure-b2c-app/
+azure-entra-app/
 ├── 01-functions/
 │   ├── code/
 │   │   ├── function_app.py    # 5 Azure Functions; JWT validated in validate_token()
 │   │   ├── requirements.txt   # azure-functions, azure-cosmos, PyJWT, cryptography, requests
 │   │   └── host.json          # Extension bundle v4
-│   ├── b2c.tf                 # azuread_application (SPA, PKCE, redirect URI)
+│   ├── entra.tf               # azuread_application (SPA, PKCE, redirect URI)
 │   ├── cosmosdb.tf            # Cosmos DB account, database, container (/owner partition)
 │   ├── functions.tf           # Storage, service plan, Function App + Entra env vars
 │   ├── main.tf                # azurerm + azuread providers, resource group, random suffix

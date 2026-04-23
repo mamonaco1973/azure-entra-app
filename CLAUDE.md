@@ -1,4 +1,4 @@
-# azure-b2c-app
+# azure-entra-app
 
 Serverless CRUD API for managing notes, secured with Microsoft Entra External ID JWT authentication. Azure Functions, Cosmos DB, Blob Storage static website.
 
@@ -49,13 +49,13 @@ ENTRA_SP_CLIENT_SECRET   # Service principal secret
 ## Project Structure
 
 ```
-azure-b2c-app/
+azure-entra-app/
 ├── 01-functions/
 │   ├── code/
 │   │   ├── function_app.py   5 HTTP-triggered functions; JWT validated in Python
 │   │   ├── requirements.txt  azure-functions, azure-cosmos, PyJWT, cryptography, requests
 │   │   └── host.json         Extension bundle v4
-│   ├── b2c.tf                azuread_application (SPA, PKCE, redirect URI → web storage)
+│   ├── entra.tf              azuread_application (SPA, PKCE, redirect URI → web storage)
 │   ├── cosmosdb.tf           Cosmos DB account → database → container (/owner partition)
 │   ├── functions.tf          Functions storage, service plan, Function App + Entra env vars
 │   ├── main.tf               azurerm + azuread (External tenant) providers, resource group, random suffix
@@ -84,7 +84,7 @@ The Blob Storage account must exist before the Entra app registration can be wri
 Each function calls `validate_token(req)` which verifies the Bearer token against Entra's JWKS endpoint (`https://<tenant>.ciamlogin.com/<tenant_id>/discovery/v2.0/keys`). The JWKS response is cached in a module-level variable (warm invocations skip the network call). Owner is set from the JWT `sub` claim, enforcing per-user data isolation in Cosmos DB.
 
 **No policy name required**
-Unlike Azure AD B2C, Entra External ID does not require a policy name in the authority URL or JWKS discovery URL. The authority is simply `https://<tenant>.ciamlogin.com/<tenant_id>/v2.0`.
+Entra External ID does not require a policy name in the authority URL or JWKS discovery URL. The authority is simply `https://<tenant>.ciamlogin.com/<tenant_id>/v2.0`.
 
 **CORS set to specific origin**
 `allowed_origins` is set to the Blob Storage URL (not `*`) so the browser will accept `Authorization` headers in cross-origin requests.
@@ -123,7 +123,7 @@ Unlike Azure AD B2C, Entra External ID does not require a policy name in the aut
 | Resource group | `notes-entra-rg` |
 | Location | `Central US` |
 | Function App | `notes-entra-func-<suffix>` |
-| Cosmos DB account | `notes-b2c-cosmos-<suffix>` |
+| Cosmos DB account | `notes-entra-cosmos-<suffix>` |
 | Cosmos DB container | `notes` with partition key `/owner` |
 | Web storage | `notesentraweb<suffix>` |
 | Entra app registration | `notes-entra-app` |
