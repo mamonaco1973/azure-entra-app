@@ -96,28 +96,26 @@ The owner field is scoped to the authenticated user.
 
 ## Demo
 
-[ Browser — Notes Demo, empty note list ]
+Navigate to the URL to launch the notes application.
 
-"The app loads and calls the list endpoint. No notes yet."
+Sign in with an existing account or create a new one.
 
-[ Clicking New — modal opens, typing a title, clicking Create ]
+We're now authenticated into the app.
 
-"New note. Give it a title. Create it — POST /api/notes. ID comes back, list refreshes."
+Open the browser debugger so we can watch the API calls.
 
-[ Clicking the note in the list ]
+Create a new note.
 
-"Click it. GET /api/notes/{id}. Content loads into the editor."
+The post call is made with the JWT as a bearer token.
 
-[ Editing and clicking Save ]
+Now update the node.
 
-"Edit and save. PUT /api/notes/{id}. Written back to Cosmos DB."
+A put call is made with the bearer token.
 
-[ Clicking Delete ]
+Delete the note.
 
-"Delete. DELETE /api/notes/{id}. Gone."
+A delete call is made with the bearer token.
 
-[ Browser — empty list ]
-
-"Create, read, update, delete — serverless on Azure. One script to deploy, one script to destroy."
+In this demo we've exercised every API endpoint, all secured with JWT bearer tokens.
 
 ---

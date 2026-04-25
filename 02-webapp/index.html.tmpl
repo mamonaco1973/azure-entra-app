@@ -329,6 +329,7 @@
 
   // ===================== Helpers ====================
   async function api(path, method = "GET", body) {
+    console.log(method, CFG.apiBaseUrl + path);
     const token   = getToken();
     const headers = { "Content-Type": "application/json" };
     if (token) headers["Authorization"] = "Bearer " + token;
