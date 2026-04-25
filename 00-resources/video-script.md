@@ -4,21 +4,17 @@
 
 ## Introduction
 
-[ Screen recording of the Notes Demo web app — creating, editing, and deleting notes in the browser ]
+[ Opening Sequence ]
 
-"Do you need a working serverless CRUD API on Azure?
+"Do you need a secure authenticated serverless API on Azure?"
 
 [ Architecture diagram — walk through it left to right: browser, storage account, Function App, Cosmos DB ]
 
-"In this project we build a fully serverless notes API using Azure Functions, Cosmos DB, and storage account — all provisioned with Terraform and deployed with a single script."
+"In this project we build a serverless notes API using an Azure Function App and Cosmos DB. The API is fully secured with an Entra ID Tenant.
 
-[ index.html in the browser — note list on the left, editor on the right ]
+[ Show Build Roll ]
 
-"The frontend is a static web app hosted on storage account. It talks to a Python Function App that handles all four operations — Create, Read, Update, and Delete — backed by Cosmos DB."
-
-[ Terminal running apply.sh — Terraform output flying by, ending with the website URL ]
-
-"Follow along and in minutes you'll have a working CRUD API running in Azure."
+"Follow along and in minutes you'll have a working authenticated API running in Azure."
 
 ---
 
@@ -30,23 +26,23 @@
 
 [ Highlight browser and storage account ]
 
-"The user opens a static web page — just an HTML file served directly from an Azure storage account."
+"The user opens a static web app from a storage account and signs in with Entra ID.
 
-[ Highlight Function App ]
+[ Entra ID then JWT ]
 
-"The frontend talks to an Azure Function App over HTTP. One Python file handles all the routes — POST to create, GET to list, GET by ID, PUT to update, DELETE to remove."
+The Entra ID login returns a JWT and that token is sent with every API request.
 
-[ Highlight Cosmos DB ]
+[ Function App ]
 
-"The backend stores data in Cosmos DB. Each note is a JSON document. The Function App connects using the Cosmos DB endpoint."
+"The function app itself validates the bearer token before the request is allowed."
 
-[ Highlight Flex Consumption plan ]
+[ Show CosmosDB ]
 
-"The Function App runs on the Flex Consumption plan — FC1. Pay per execution, scales to zero when idle."
+"The funcion app stores the notes in the Cosmos DB table."
 
-[ Full diagram ]
+[ Owner Field ]
 
-"Two resource groups, one script to deploy. Let's build it."
+The owner field is scoped to the authenticated user.
 
 ---
 
