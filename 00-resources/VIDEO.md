@@ -1,34 +1,34 @@
-#Azure #Serverless #AzureFunctions #CosmosDB #Terraform #Python #CRUD
+#Azure #Serverless #AzureFunctions #CosmosDB #EntraExternalID #Terraform #Python #CRUD
 
-*Build a Serverless CRUD API on Azure (Functions + Cosmos DB)*
+*Secure a Serverless API on Azure (Function App + Entra External ID)*
 
-Deploy a fully serverless notes API on Azure using Terraform, Azure Functions, and Cosmos DB. The backend runs on a Flex Consumption (FC1) Function App with Python, backed by a Cosmos DB SQL API database, with a static web frontend served directly from Blob Storage.
+Add real user authentication to a serverless notes API on Azure using Microsoft Entra External ID and in-code JWT validation — all provisioned with Terraform and deployed with a single script. The backend runs on a Flex Consumption (FC1) Function App with Python, Cosmos DB stores the data with per-user partitioning, and a static Blob Storage frontend handles the Entra sign-in flow.
 
-In this project we build a clean REST API with full Create, Read, Update, and Delete support — wired to a real database, deployed with a single script, and tested through a browser-based UI with no server to manage.
 
 WHAT YOU'LL LEARN
-• Deploying Azure Functions on the Flex Consumption (FC1) plan with Terraform
-• Packaging and zip-deploying Python function code with remote build
-• Provisioning Cosmos DB (SQL API) and wiring credentials into the Function App
-• Hosting a static web frontend on Azure Blob Storage ($web container)
-• Injecting runtime config into HTML templates using envsubst
+• Provisioning an Entra External ID app registration using the azuread Terraform provider
+• Validating Entra JWTs in Python directly inside the Function App with in-instance JWKS caching
+• Using the JWT sub claim as the Cosmos DB partition key to enforce per-user data isolation
+• Associating an Entra app registration with a user flow via the Microsoft Graph API
+• Locking Function App CORS to a specific Blob Storage origin
+• Generating runtime config (config.json) at deploy time from Terraform outputs
 
 INFRASTRUCTURE DEPLOYED
-• Azure Function App (Flex Consumption / FC1, Python 3.11)
+• Azure Function App (Flex Consumption / FC1, Python 3.11, 5 HTTP routes, JWT validated in code)
+• Cosmos DB account with SQL API database and container (partition key: /owner)
+• Entra External ID app registration (SPA platform, no client secret, redirect URI wired to Blob Storage)
 • Storage account for function code zip deployment
-• Cosmos DB account with SQL API database and container
-• Storage account hosting a static web frontend ($web container)
-• App settings passing Cosmos DB endpoint and key to the Function App
+• Storage account hosting a static SPA ($web container: index.html, callback.html, config.json)
 
 GitHub
-https://github.com/mamonaco1973/azure-crud-example
+https://github.com/mamonaco1973/azure-entra-app
 
 README
-https://github.com/mamonaco1973/azure-crud-example/blob/main/README.md
+https://github.com/mamonaco1973/azure-entra-app/blob/main/README.md
 
 TIMESTAMPS
 00:00 Introduction
-00:22 Architecture
-00:51 Build the Code
-01:07 Build Results
-01:39 Demo
+00:16 Architecture
+00:39 Build the Code
+02:31 Build Results
+03:21 Demo
