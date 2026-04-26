@@ -20,11 +20,11 @@ cd ..
 
 echo "NOTE: Removing notes-entra-app from user flow '${ENTRA_USER_FLOW_NAME}'..."
 
-# Run in a subshell so any unexpected failure logs and continues the destroy.
-(
+# Retried up to 10 times — failures are non-fatal; destroy continues regardless.
+_remove_app() {
   if [[ -z "$ENTRA_CLIENT_ID" ]]; then
     echo "NOTE: No Entra client ID in state. Skipping association cleanup."
-    exit 0
+    return 0
   fi
 
   GRAPH_TOKEN=$(curl -s -X POST \
@@ -36,8 +36,8 @@ echo "NOTE: Removing notes-entra-app from user flow '${ENTRA_USER_FLOW_NAME}'...
     | jq -r '.access_token')
 
   if [[ -z "$GRAPH_TOKEN" || "$GRAPH_TOKEN" == "null" ]]; then
-    echo "WARNING: Could not acquire Graph token. Skipping association cleanup."
-    exit 0
+    echo "WARNING: Could not acquire Graph token."
+    return 1
   fi
 
   FLOW_ID=$(curl -s -G \
@@ -47,8 +47,8 @@ echo "NOTE: Removing notes-entra-app from user flow '${ENTRA_USER_FLOW_NAME}'...
     | jq -r '.value[0].id')
 
   if [[ -z "$FLOW_ID" || "$FLOW_ID" == "null" ]]; then
-    echo "WARNING: User flow '${ENTRA_USER_FLOW_NAME}' not found. Skipping."
-    exit 0
+    echo "NOTE: User flow '${ENTRA_USER_FLOW_NAME}' not found. Skipping."
+    return 0
   fi
 
   HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
@@ -57,14 +57,29 @@ echo "NOTE: Removing notes-entra-app from user flow '${ENTRA_USER_FLOW_NAME}'...
 
   if [[ "$HTTP_STATUS" == "204" ]]; then
     echo "NOTE: App removed from user flow."
+    return 0
   elif [[ "$HTTP_STATUS" == "404" ]]; then
-    # Already gone — no action needed.
     echo "NOTE: App was not associated with user flow (already clean)."
-  else
-    echo "WARNING: Unexpected status removing app from user flow (HTTP ${HTTP_STATUS})."
-    exit 1
+    return 0
   fi
-) || echo "WARNING: Phase 1.5 cleanup failed. Continuing with destroy..."
+
+  echo "WARNING: Unexpected status removing app from user flow (HTTP ${HTTP_STATUS})."
+  return 1
+}
+
+_GRAPH_MAX=10
+_GRAPH_DELAY=30
+for _attempt in $(seq 1 $_GRAPH_MAX); do
+  if _remove_app; then
+    break
+  fi
+  if [[ $_attempt -lt $_GRAPH_MAX ]]; then
+    echo "NOTE: Retrying in ${_GRAPH_DELAY}s (attempt ${_attempt}/${_GRAPH_MAX})..."
+    sleep $_GRAPH_DELAY
+  else
+    echo "WARNING: Phase 1.5 cleanup failed after ${_GRAPH_MAX} attempts. Continuing with destroy..."
+  fi
+done
 
 
 # ── Destroy infrastructure ─────────────────────────────────────────────────────
